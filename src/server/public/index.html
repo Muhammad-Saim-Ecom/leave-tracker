@@ -264,45 +264,159 @@
   .group-h .n { font-size: 12px; color: var(--muted); }
 
   /* ---------- Calendar ---------- */
-  .cal-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-  .cal-controls h2 { margin: 0 8px 0 4px; font-size: 16px; font-weight: 600; min-width: 210px; }
-  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
-  .seg button { border: 0; background: none; padding: 5px 11px; font-size: 12.5px; font-weight: 500; cursor: pointer; color: var(--muted); }
-  .seg button + button { border-left: 1px solid var(--border); }
-  .seg button.on { background: var(--surface-3); color: var(--text); font-weight: 600; }
+  .cal-top { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+  .eyebrow { font-size: 11.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); }
+  .cal-title h2 { margin: 3px 0 0; font-size: 28px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+  .cal-title h2 .yr2 { color: var(--faint); font-weight: 500; }
+  .cal-nav { display: inline-flex; align-items: center; gap: 6px; }
+  .icon-btn {
+    width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); cursor: pointer;
+    display: grid; place-items: center; font-size: 17px; line-height: 1; color: var(--muted); box-shadow: var(--shadow);
+  }
+  .icon-btn:hover { color: var(--text); background: var(--surface-2); }
+  .icon-btn:disabled { opacity: .4; cursor: default; }
+  .seg.pill { border-radius: 10px; padding: 3px; gap: 2px; background: var(--surface-2); }
+  .seg.pill button { border: 0; border-radius: 7px; padding: 5px 12px; }
+  .seg.pill button.on { background: var(--surface); box-shadow: var(--shadow), 0 0 0 1px var(--border); }
+  .cal-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
   .check { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); cursor: pointer; user-select: none; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500; color: var(--muted); cursor: pointer; user-select: none;
+    padding: 4px 11px 4px 5px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+  }
+  .toggle input {
+    appearance: none; -webkit-appearance: none; width: 26px; height: 16px; margin: 0; border-radius: 999px; background: var(--surface-3);
+    position: relative; cursor: pointer; transition: background .15s;
+  }
+  .toggle input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); transition: transform .15s; }
+  .toggle input:checked { background: var(--accent); }
+  .toggle input:checked::after { transform: translateX(10px); }
+  .toggle:has(input:checked) { color: var(--text); }
+  .heatkey { display: inline-flex; align-items: center; gap: 3px; }
+  .heatkey i { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--border); }
+
+  /* Range stats: hairline-separated cells */
+  .cal-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--border); overflow: hidden; margin-bottom: 16px; }
+  .cal-kpis > * { background: var(--surface); padding: 14px 18px; border: 0; text-align: left; display: flex; gap: 12px; align-items: flex-end; min-width: 0; }
+  .cal-kpis > button { cursor: pointer; }
+  .cal-kpis > button:hover { background: var(--surface-2); }
+  .cal-kpis .kb { flex: 1; min-width: 0; }
+  .cal-kpis .k { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .cal-kpis .v { font-size: 24px; font-weight: 700; letter-spacing: -.02em; line-height: 1.25; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cal-kpis .s { font-size: 12px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .spark { display: flex; align-items: flex-end; gap: 2px; height: 34px; width: 46%; max-width: 160px; flex: none; }
+  .spark i { flex: 1; min-height: 2px; border-radius: 2px; background: color-mix(in srgb, var(--accent) 55%, transparent); }
+  .spark i.now { background: var(--accent); }
+
+  .cal-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+
+  /* Month grid: each day is tinted by how many people are off */
+  .month { padding: 8px; }
+  .mhead, .mgrid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 6px; }
+  .mhead div { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); padding: 6px 10px 4px; }
+  .mday {
+    --cell: color-mix(in srgb, var(--accent) var(--heat, 0%), var(--surface));
+    position: relative; min-height: 116px; min-width: 0; border-radius: 11px; padding: 8px 9px 9px; text-align: left; cursor: pointer;
+    border: 1px solid var(--border); background: var(--cell); display: flex; flex-direction: column; gap: 7px;
+    transition: border-color .12s, box-shadow .12s, transform .12s;
+  }
+  .mday.we { --cell: var(--surface-2); border-style: dashed; }
+  .mday.pad { opacity: .42; }
+  .mday:hover { border-color: var(--border-strong); box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+  .mday.picked { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow-lg); }
+  .mday:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .mday .dn { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 13px; font-weight: 600; }
+  .mday .dn b { min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; margin: -2px 0 0 -4px; font-weight: 600; }
+  .mday .dn b small { font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 3px; }
+  .mday.today .dn b { background: var(--accent); color: #fff; }
+  .mday.today .dn b small { color: inherit; opacity: .8; }
+  .mday .cnt { font-size: 11px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mday .pendn { font-size: 11px; color: var(--warn); font-weight: 500; }
+  .mtypes { display: flex; gap: 2px; height: 4px; margin-top: auto; border-radius: 2px; overflow: hidden; }
+  .mtypes i { background: var(--c); }
+  .stackav { display: flex; align-items: center; flex-wrap: nowrap; }
+  .stackav > * + * { margin-left: -7px; }
+  .stackav .av { box-shadow: 0 0 0 2px var(--cell, var(--surface)); }
+  .more-av { background: var(--surface-3); color: var(--muted); font-size: 10px; }
+  /* Avatar with a leave-type dot; dashed ring while waiting for approval */
+  .avt { position: relative; display: inline-flex; flex: none; border-radius: 50%; }
+  .avt::after { content: ""; position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px var(--cell, var(--surface)); }
+  .avt.pend .av { outline: 1.5px dashed var(--warn); outline-offset: 1px; }
+
+  /* Day inspector */
+  .inspector { position: sticky; top: 124px; max-height: calc(100vh - 140px); overflow-y: auto; }
+  .ins-h { padding: 18px 18px 16px; border-bottom: 1px solid var(--border); background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 9%, var(--surface)), var(--surface) 70%); border-radius: var(--radius) var(--radius) 0 0; }
+  .ins-top { display: flex; align-items: flex-start; gap: 8px; }
+  .ins-day { font-size: 24px; font-weight: 700; letter-spacing: -.025em; line-height: 1.15; margin-top: 4px; }
+  .ins-date { font-size: 13px; color: var(--muted); }
+  .ins-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+  .ins-nums div { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; }
+  .ins-nums b { display: block; font-size: 18px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .ins-nums span { font-size: 11.5px; color: var(--muted); }
+  .ins-b { padding: 4px 18px 14px; }
+  .ins-g { margin: 14px 0 2px; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); display: flex; justify-content: space-between; }
+  .irow { display: flex; align-items: center; gap: 11px; padding: 9px 0; border-top: 1px solid var(--border); cursor: pointer; }
+  .ins-g + .irow { border-top: 0; }
+  .irow:hover .pname { color: var(--link); }
+  .irow .pend b { color: var(--text); font-weight: 600; }
+  .ins-empty { padding: 30px 0 18px; text-align: center; color: var(--muted); font-size: 13px; }
+  .ins-empty .big { font-size: 26px; margin-bottom: 6px; }
+  .ins-f { padding: 12px 18px 16px; border-top: 1px solid var(--border); }
+  .busy { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .busy button { display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: 10px; border: 0; background: none; padding: 3px 0; cursor: pointer; font-size: 12.5px; text-align: left; }
+  .busy button:hover span:first-child { color: var(--link); }
+  .busy .track { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+  .busy .track i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+
+  /* Timeline */
   .cal { overflow-x: auto; }
   .cal-grid { min-width: 100%; }
-  .cal-row { display: grid; grid-template-columns: 230px repeat(var(--n), minmax(30px, 1fr)); align-items: stretch; }
-  .cal-row > .who { position: sticky; left: 0; z-index: 3; background: var(--surface); padding: 6px 12px 6px 16px; display: flex; align-items: center; gap: 9px; border-right: 1px solid var(--border); min-width: 0; cursor: pointer; }
+  .cal-row { display: grid; grid-template-columns: 240px repeat(var(--n), minmax(32px, 1fr)); align-items: stretch; }
+  .cal-row > .who { position: sticky; left: 0; z-index: 3; background: var(--surface); padding: 7px 12px 7px 16px; display: flex; align-items: center; gap: 9px; border-right: 1px solid var(--border); min-width: 0; cursor: pointer; }
   .cal-row > .who .pname { font-size: 13px; }
   .cal-row > .who .pmeta { font-size: 11.5px; }
-  .cal-row .cell { border-left: 1px solid color-mix(in srgb, var(--border) 60%, transparent); grid-row: 1; min-height: 44px; }
-  .cal-row .cell.we { background: var(--surface-2); }
-  .cal-row .cell.today { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
+  .cal-row > .who .tot { font-size: 11px; font-weight: 600; color: var(--muted); background: var(--surface-2); border-radius: 6px; padding: 1px 6px; font-variant-numeric: tabular-nums; }
+  .cal-row .cell { border-left: 1px solid color-mix(in srgb, var(--border) 55%, transparent); grid-row: 1; min-height: 46px; }
+  .cal-row .cell.we { background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, transparent 6px 12px); }
+  .cal-row .cell.picked { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+  .cal-row .cell.today { box-shadow: inset 2px 0 0 var(--accent); }
   .cal-row + .cal-row { border-top: 1px solid var(--border); }
-  .cal-head { position: sticky; top: 0; z-index: 4; background: var(--surface); border-bottom: 1px solid var(--border-strong); border-radius: var(--radius) var(--radius) 0 0; }
+  .cal-head { position: sticky; top: 0; z-index: 4; background: var(--surface); border-bottom: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; }
   .cal-head .who { font-size: 12px; color: var(--muted); font-weight: 500; border-radius: var(--radius) 0 0 0; }
-  .cal-head .day { text-align: center; padding: 8px 0 6px; font-size: 11px; color: var(--faint); grid-row: 1; line-height: 1.25; }
-  .cal-head .day b { display: block; font-size: 13px; color: var(--text); font-weight: 600; }
+  .cal-head .day { text-align: center; padding: 8px 0 6px; font-size: 10.5px; color: var(--faint); grid-row: 1; line-height: 1.3; cursor: pointer; text-transform: uppercase; letter-spacing: .04em; }
+  .cal-head .day:hover b { background: var(--surface-3); }
+  .cal-head .day b { display: block; width: 24px; margin: 1px auto 0; border-radius: 7px; font-size: 13px; color: var(--text); font-weight: 600; letter-spacing: 0; }
   .cal-head .day.we b { color: var(--faint); font-weight: 500; }
-  .cal-head .day.today b { color: #fff; background: var(--accent); border-radius: 6px; display: inline-block; padding: 0 5px; }
+  .cal-head .day.picked b { box-shadow: 0 0 0 1.5px var(--accent); }
+  .cal-head .day.today b { color: #fff; background: var(--accent); }
   .cal-head .day.m1 { box-shadow: inset 1px 0 0 var(--border-strong); }
-  .cal-count .who { font-size: 12px; color: var(--muted); }
-  .cal-count .cell { min-height: 30px; display: grid; place-items: center; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
-  .cal-count .cell.hi { color: var(--warn); }
-  .cal-group { padding: 8px 16px; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); border-top: 1px solid var(--border); position: sticky; left: 0; }
+  .cal-head .day .mn { display: block; height: 0; position: relative; top: -21px; left: 4px; text-align: left; font-weight: 700; color: var(--muted); }
+  /* Capacity row: a small bar per day, height = people out */
+  .cal-cap .who { font-size: 12px; color: var(--muted); }
+  .cal-cap .cell { min-height: 52px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; padding-top: 6px; cursor: pointer; }
+  .cal-cap .cell span { font-size: 10.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .cal-cap .cell i { display: block; width: min(16px, 60%); border-radius: 4px 4px 0 0; background: color-mix(in srgb, var(--accent) 60%, transparent); }
+  .cal-cap .cell.hi i { background: var(--warn); }
+  .cal-cap .cell.hi span { color: var(--warn); }
+  .cal-cap .cell:hover i { filter: brightness(1.15); }
+  .cal-group {
+    padding: 9px 16px; font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+    background: var(--surface-2); border-top: 1px solid var(--border); position: sticky; left: 0; display: flex; gap: 8px; align-items: center;
+  }
+  .cal-group .n { font-weight: 500; color: var(--faint); letter-spacing: 0; text-transform: none; }
   .bar {
-    grid-row: 1; align-self: center; height: 26px; margin: 0 2px; border-radius: 6px; z-index: 2; cursor: pointer;
-    background: var(--c); color: #fff; font-size: 11.5px; font-weight: 600; padding: 0 8px; display: flex; align-items: center;
-    overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0;
+    grid-row: 1; align-self: center; height: 28px; margin: 0 3px; border-radius: 8px; z-index: 2; cursor: pointer;
+    background: color-mix(in srgb, var(--c) 17%, var(--surface)); color: color-mix(in srgb, var(--c) 72%, var(--text));
+    box-shadow: inset 3px 0 0 var(--c), inset 0 0 0 1px color-mix(in srgb, var(--c) 32%, transparent);
+    font-size: 11.5px; font-weight: 600; padding: 0 8px 0 11px; display: flex; align-items: center;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; transition: transform .12s, box-shadow .12s;
   }
-  .bar.half { height: 14px; }
+  .bar.half { height: 14px; font-size: 0; }
   .bar.pending {
-    background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--c) 28%, transparent) 0 4px, transparent 4px 8px), var(--surface);
-    color: var(--text); box-shadow: inset 0 0 0 1.5px var(--c);
+    background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 15%, var(--surface)) 0 5px, var(--surface) 5px 10px);
+    box-shadow: none; border: 1.5px dashed color-mix(in srgb, var(--c) 75%, transparent); color: var(--muted);
   }
-  .bar:hover { filter: brightness(1.06); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--c); }
+  .bar:hover { transform: translateY(-1px); box-shadow: inset 3px 0 0 var(--c), inset 0 0 0 1.5px var(--c), 0 6px 14px -6px var(--c); }
   .bar.cut-l { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
   .bar.cut-r { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
 
@@ -398,7 +512,9 @@
   .err-banner { margin-top: 14px; padding: 10px 14px; border-radius: 10px; font-size: 13px; background: color-mix(in srgb, var(--bad) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent); }
 
   @media (max-width: 1100px) {
-    .g4, .g5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .g4, .g5, .cal-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cal-layout { grid-template-columns: 1fr; }
+    .inspector { position: static; max-height: none; }
     .g-main, .g2 { grid-template-columns: 1fr; }
   }
   @media (max-width: 720px) {
@@ -413,6 +529,12 @@
     .req { grid-template-columns: auto minmax(0, 1fr); }
     .req .actions { grid-column: 1 / -1; flex-direction: row; justify-content: flex-start; }
     .cal-row { grid-template-columns: 150px repeat(var(--n), minmax(30px, 1fr)); }
+    .cal-row > .who .tot { display: none; }
+    .cal-title h2 { font-size: 22px; }
+    .mhead, .mgrid { gap: 3px; }
+    .mday { min-height: 60px; padding: 5px; border-radius: 8px; }
+    .mday .stackav, .mday .pendn, .mday .cnt { display: none; }
+    .spark { display: none; }
     .hbar { grid-template-columns: 110px 1fr 60px; }
     .search { width: 100%; }
     .summary { margin-left: 0; }
@@ -494,7 +616,7 @@ const state = {
   version: -1,
   fetchedAt: null,
   approvalsManager: saved('approvalsManager', ''),
-  cal: { weeks: saved('calWeeks', 4), offset: 0, custom: null, pending: saved('calPending', true), weekends: saved('calWeekends', true) },
+  cal: { view: saved('calView', 'month'), month: 0, sel: null, weeks: saved('calWeeks', 4), offset: 0, custom: null, pending: saved('calPending', true), weekends: saved('calWeekends', true) },
   req: { q: '', status: saved('reqStatus', []), type: '', finance: '', manager: '', period: 'all', group: saved('reqGroup', 'none'), sort: saved('reqSort', ['createdAt', -1])[0], dir: saved('reqSort', ['createdAt', -1])[1], limit: 100 },
   fin: { view: saved('finView', 'requests'), q: '', stage: '', finance: '', month: '', type: '', sort: 'createdAt', dir: -1, limit: 100 },
   ppl: { q: '', year: new Date().getFullYear(), sort: 'days' },
@@ -515,6 +637,8 @@ const mondayOf = (iso) => addDays(iso, -((dow(iso) + 6) % 7));
 const today = () => localISO();
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const WD_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function fmtDate(iso, { wd = true, year = 'auto' } = {}) {
   if (!iso) return '—';
@@ -636,9 +760,12 @@ const G = {
   overlap: `<p>Colleagues in the same department with approved or pending leave on any of the same days. Use it to check the team will still be covered.</p>`,
   filed: `<p>When the request was created in Notion.</p>`,
 
-  calCount: `<p>How many different people have <b>approved</b> leave that day. Pending requests aren't counted.</p><p>The busiest day in view is shown in orange.</p>`,
+  calCount: `<p>How many different people have <b>approved</b> leave that day. Pending requests aren't counted.</p><p>The busiest day in view is shown in orange. Click a day to see who's out.</p>`,
+  calMonth: `<p>Each day shows who has leave. The <b>deeper the colour</b>, the more people have approved leave that day.</p><p>The dot on an avatar is the leave type; a <b>dashed ring</b> means it's still waiting for approval. The thin strip at the bottom splits the day's absences by type.</p><p>Click a day to see who's out in the panel on the right.</p>`,
+  calDay: `<p>Everyone with leave on the selected day, grouped by department.</p><p><b>Back</b> is their first working day (Monday to Friday) after the leave ends. Click a person for the request.</p>`,
+  calKpi: `<p>Totals for the dates in view.</p><p><b>People off</b>: different people with approved leave on at least one day. The small chart is people out per weekday.<br><b>Days booked</b>: approved leave days that fall in this period (a half day counts 0.5).<br><b>Busiest day</b>: the day the most people are out. Click it to select it.<br><b>Awaiting approval</b>: requests in this period with no decision yet.</p>`,
   calBars: `<p><b>Solid bar</b>: approved leave.<br><b>Striped bar</b>: waiting for approval.<br><b>Thin bar</b>: less than a full day (for example a half day).</p><p>The colour is the leave type. Hover over a bar for details, or click it to open the request.</p>`,
-  calRange: `<p>Pick any start and end date. ‹ and › move the whole range by its length, and <b>Today</b> moves it to start this week.</p><p>Up to about 6 months at a time; scroll sideways for long ranges.</p>`,
+  calRange: `<p>Pick any start and end date. ‹ and › move the whole range by its length, and <b>Today</b> moves it to start today.</p><p>Up to about 6 months at a time; scroll sideways for long ranges.</p>`,
   calPending: `<p>Also show requests that haven't been approved yet, as striped bars.</p>`,
 
   days: `<p>Total leave days asked for (<b>Number of Days</b> in Notion). ½ means a half day.</p><p>Always equals <b>Paid days</b> + <b>Unpaid days</b>.</p>`,
@@ -918,81 +1045,215 @@ function renderApprovals() {
 }
 
 // ---------------------------------------------------------------- calendar
+/** Avatar with a leave-type dot, and a dashed ring while the request waits for approval. */
+const avTyped = (l, cls = 'sm') => `<span class="avt ${l.approval === 'Pending' ? 'pend' : ''}" style="--c:${typeColor(l.type)}">${avatar(l, cls)}</span>`;
+const round1 = (n) => Math.round(n * 10) / 10;
+
 function renderCalendar() {
   const el = $('#v-calendar');
   const c = state.cal;
   const t = today();
-  // Either N weeks from this week's Monday (shifted by `offset`), or a custom from–to range
-  const a = c.custom ? c.custom.from : addDays(mondayOf(t), c.offset * 7);
-  const b = c.custom ? c.custom.to : addDays(a, c.weeks * 7 - 1);
-  const n = diffDays(a, b) + 1;
-  let days = []; for (let i = 0; i < n; i++) days.push(addDays(a, i));
-  if (!c.weekends) days = days.filter((d) => !isWeekend(d));
-  const col = new Map(days.map((d, i) => [d, i]));
-
-  const list = scoped().filter((l) => (l.approval === 'Approved' || (c.pending && l.approval === 'Pending')) && overlaps(l, a, b));
-  const people = new Map();
-  for (const l of list) {
-    const k = personKey(l);
-    if (!people.has(k)) people.set(k, { key: k, sample: l, leaves: [] });
-    people.get(k).leaves.push(l);
+  const month = c.view === 'month';
+  // Visible range [a, b]: a calendar month, the next N weeks from today (shifted by `offset` weeks), or a custom from–to range
+  let a, b;
+  if (month) {
+    const m = new Date(Date.UTC(+t.slice(0, 4), +t.slice(5, 7) - 1 + c.month, 1));
+    a = fromMs(m.getTime()); b = fromMs(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + 1, 0));
+  } else {
+    a = c.custom ? c.custom.from : addDays(t, c.offset * 7);
+    b = c.custom ? c.custom.to : addDays(a, c.weeks * 7 - 1);
   }
-  const groups = DEPTS.map((d) => [d, [...people.values()].filter((p) => p.sample.deptGroup === d)
-    .sort((x, y) => Math.min(...x.leaves.map((l) => toMs(l.start))) - Math.min(...y.leaves.map((l) => toMs(l.start))) || x.sample.name.localeCompare(y.sample.name))]).filter((g) => g[1].length);
+  // The month grid is padded out to whole weeks
+  const gA = month ? mondayOf(a) : a, gB = month ? addDays(mondayOf(b), 6) : b;
+  let days = []; for (let i = 0, n = diffDays(gA, gB); i <= n; i++) days.push(addDays(gA, i));
+  if (!c.weekends) days = days.filter((d) => !isWeekend(d));
+  const inView = days.filter((d) => d >= a && d <= b);
+  if (!c.sel || !inView.includes(c.sel)) c.sel = inView.includes(t) ? t : inView.find((d) => !isWeekend(d)) || inView[0];
 
-  const offCount = days.map((d) => new Set(list.filter((l) => l.approval === 'Approved' && spread(l).some(([x]) => x === d)).map(personKey)).size);
-  const maxOff = Math.max(...offCount, 0);
+  const list = scoped().filter((l) => (l.approval === 'Approved' || (c.pending && l.approval === 'Pending')) && overlaps(l, gA, gB));
+  // Who is off each day, one entry per person (approved wins over pending). Uses the weekdays a leave covers, like every other count.
+  const onDay = new Map(days.map((d) => [d, new Map()]));
+  for (const l of list) for (const [d, w] of spread(l)) {
+    const m = onDay.get(d); if (!m) continue;
+    const prev = m.get(personKey(l));
+    if (!prev || (prev.l.approval === 'Pending' && l.approval === 'Approved')) m.set(personKey(l), { l, w });
+  }
+  const peopleOn = (d) => [...(onDay.get(d)?.values() || [])]
+    .sort((x, y) => (x.l.approval === 'Pending') - (y.l.approval === 'Pending') || x.l.name.localeCompare(y.l.name));
+  const offOn = new Map(days.map((d) => [d, peopleOn(d).filter((x) => x.l.approval === 'Approved').length]));
+  const maxOff = Math.max(0, ...inView.map((d) => offOn.get(d)));
 
-  const cells = (extra = '') => days.map((d, i) => `<div class="cell ${isWeekend(d) ? 'we' : ''} ${d === t ? 'today' : ''}" style="grid-column:${i + 2}">${extra}</div>`).join('');
-  const bars = (p) => p.leaves.map((l) => {
-    // Clip to the visible window; with weekends hidden, snap to the nearest shown day.
-    let s = l.start < a ? a : l.start, e = (l.end || l.start) > b ? b : (l.end || l.start);
-    while (!col.has(s) && s <= e) s = addDays(s, 1);
-    while (!col.has(e) && e >= s) e = addDays(e, -1);
-    if (s > e) return '';
-    const i0 = col.get(s), i1 = col.get(e);
-    const half = l.days != null && l.days < 1;
-    const span = i1 - i0 + 1;
-    const label = span >= 3 ? `${typeShort(l.type)} · ${daysLabel(l.days)}` : span === 2 ? typeShort(l.type) : '';
-    return `<div class="bar ${l.approval === 'Pending' ? 'pending' : ''} ${half ? 'half' : ''} ${l.start < a ? 'cut-l' : ''} ${(l.end || l.start) > b ? 'cut-r' : ''}" style="--c:${typeColor(l.type)};grid-column:${i0 + 2} / ${i1 + 3}" data-leave="${l.id}" data-tip="${tipLeave(l)}">${esc(label)}</div>`;
-  }).join('');
+  // Range stats
+  const apprIn = list.filter((l) => l.approval === 'Approved' && overlaps(l, a, b));
+  const peopleOff = new Set(apprIn.filter((l) => daysInRange(l, a, b) > 0).map(personKey)).size;
+  const daysBooked = sum(apprIn, (l) => daysInRange(l, a, b));
+  const pendIn = scoped().filter((l) => l.approval === 'Pending' && overlaps(l, a, b));
+  const busiest = inView.filter((d) => offOn.get(d) > 0).sort((x, y) => offOn.get(y) - offOn.get(x) || x.localeCompare(y));
+  const sparkDays = inView.filter((d) => !isWeekend(d));
+  const rangeLabel = `${fmtDate(a, { wd: false })} – ${fmtDate(b, { wd: false, year: true })}`;
 
-  const monthLabel = (() => {
-    const s = new Date(toMs(a)), e = new Date(toMs(b));
-    return s.getUTCMonth() === e.getUTCMonth() ? `${MON[s.getUTCMonth()]} ${s.getUTCFullYear()}` : `${MON[s.getUTCMonth()]}${s.getUTCFullYear() !== e.getUTCFullYear() ? ' ' + s.getUTCFullYear() : ''} – ${MON[e.getUTCMonth()]} ${e.getUTCFullYear()}`;
-  })();
+  const sd = new Date(toMs(a));
+  const title = month
+    ? `${MONTH_FULL[sd.getUTCMonth()]} <span class="yr2">${sd.getUTCFullYear()}</span>`
+    : (() => {
+      const e = new Date(toMs(b));
+      return sd.getUTCMonth() === e.getUTCMonth() ? `${MONTH_FULL[sd.getUTCMonth()]} <span class="yr2">${sd.getUTCFullYear()}</span>`
+        : `${MON[sd.getUTCMonth()]}${sd.getUTCFullYear() !== e.getUTCFullYear() ? ' ' + sd.getUTCFullYear() : ''} – ${MON[e.getUTCMonth()]} <span class="yr2">${e.getUTCFullYear()}</span>`;
+    })();
 
-  el.innerHTML = `
-    <div class="cal-controls">
-      <button class="btn" data-cal="prev" aria-label="Earlier">‹</button><button class="btn" data-cal="today">Today</button><button class="btn" data-cal="next" aria-label="Later">›</button>
-      <h2>${monthLabel}</h2>
-      <div class="seg">${[2, 4, 6].map((w) => `<button class="${!c.custom && c.weeks === w ? 'on' : ''}" data-weeks="${w}">${w} weeks</button>`).join('')}<button class="${c.custom ? 'on' : ''}" data-weeks="custom">Custom</button></div>
-      ${c.custom ? `<label class="check">From <input type="date" class="sel" id="calFrom" value="${a}"></label><label class="check">To <input type="date" class="sel" id="calTo" value="${b}"></label>${info('calRange')}` : ''}
-      <label class="check"><input type="checkbox" id="calPend" ${c.pending ? 'checked' : ''}> Show pending</label>${info('calPending')}
-      <label class="check"><input type="checkbox" id="calWe" ${c.weekends ? 'checked' : ''}> Weekends</label>
-      <div class="spacer"></div>
-      <div class="legend">${TYPES.map((ty) => `<span><i style="--c:${typeColor(ty)}"></i>${typeShort(ty)}</span>`).join('')}<span><i class="hatch"></i>Pending</span><span><i style="--c:var(--faint);height:5px"></i>Half day</span>${info('calBars')}</div>
-    </div>
-    <div class="card cal"><div class="cal-grid" style="--n:${days.length};min-width:${230 + days.length * 30}px">
-      <div class="cal-row cal-head"><div class="who">${people.size} ${people.size === 1 ? 'person' : 'people'} off</div>
-        ${days.map((d, i) => { const dt = new Date(toMs(d)); return `<div class="day ${isWeekend(d) ? 'we' : ''} ${d === t ? 'today' : ''} ${dt.getUTCDate() === 1 && i ? 'm1' : ''}" style="grid-column:${i + 2}">${WD[dt.getUTCDay()].slice(0, 2)}<b>${dt.getUTCDate()}</b></div>`; }).join('')}</div>
-      <div class="cal-row cal-count"><div class="who">Approved off${info('calCount')}</div>${days.map((d, i) => `<div class="cell ${isWeekend(d) ? 'we' : ''} ${d === t ? 'today' : ''} ${offCount[i] && offCount[i] === maxOff && maxOff > 1 ? 'hi' : ''}" style="grid-column:${i + 2}">${offCount[i] || ''}</div>`).join('')}</div>
-      ${groups.length ? groups.map(([g, ps]) => `<div class="cal-group">${esc(g)} · ${ps.length}</div>` + ps.map((p) => `
-        <div class="cal-row"><div class="who" data-person="${esc(p.key)}">${avatar(p.sample, 'sm')}<div class="pmain"><div class="pname">${esc(p.sample.name)}</div><div class="pmeta">${esc(p.sample.dept || p.sample.deptGroup)}</div></div></div>${cells()}${bars(p)}</div>`).join('')).join('')
+  const dayTip = (d) => {
+    const ps = peopleOn(d);
+    if (!ps.length) return '';
+    return esc(`<div class="t">${esc(fmtDate(d))}</div>` + ps.slice(0, 12).map((x) => `<div class="r"><span><i style="--c:${typeColor(x.l.type)}"></i>${esc(x.l.name)}</span><span class="muted">${esc(typeShort(x.l.type))}${x.w < 1 ? ' · ' + esc(daysLabel(x.w)) : ''}${x.l.approval === 'Pending' ? ' · pending' : ''}</span></div>`).join('') + (ps.length > 12 ? `<div class="muted">+${ps.length - 12} more</div>` : ''));
+  };
+
+  // ---- month grid
+  const monthHtml = () => {
+    const heads = (c.weekends ? [1, 2, 3, 4, 5, 6, 0] : [1, 2, 3, 4, 5]).map((i) => `<div>${WD[i]}</div>`).join('');
+    const cells = days.map((d) => {
+      const ps = peopleOn(d), off = offOn.get(d), pend = ps.length - off;
+      const heat = off ? Math.round(10 + (off / Math.max(maxOff, 1)) * 30) : 0;
+      const dt = new Date(toMs(d));
+      const types = TYPES.map((ty) => [ty, ps.filter((x) => x.l.type === ty && x.l.approval === 'Approved').length]).filter(([, k]) => k);
+      return `<button class="mday ${d < a || d > b ? 'pad' : ''} ${isWeekend(d) ? 'we' : ''} ${d === t ? 'today' : ''} ${d === c.sel ? 'picked' : ''}" style="--heat:${heat}%" data-day="${d}" ${ps.length ? `data-tip="${dayTip(d)}"` : ''} aria-label="${esc(fmtDate(d))}: ${off} out${pend ? `, ${pend} pending` : ''}">
+        <span class="dn"><b>${dt.getUTCDate()}${dt.getUTCDate() === 1 ? `<small>${MON[dt.getUTCMonth()]}</small>` : ''}</b>${off ? `<span class="cnt">${off} out</span>` : ''}</span>
+        ${ps.length ? `<span class="stackav">${ps.slice(0, 4).map((x) => avTyped(x.l)).join('')}${ps.length > 4 ? `<span class="av sm more-av">+${ps.length - 4}</span>` : ''}</span>` : ''}
+        ${pend ? `<span class="pendn">${pend} pending</span>` : ''}
+        ${types.length ? `<span class="mtypes">${types.map(([ty, k]) => `<i style="--c:${typeColor(ty)};flex:${k}"></i>`).join('')}</span>` : ''}
+      </button>`;
+    }).join('');
+    return `<div class="card month" style="--cols:${c.weekends ? 7 : 5}"><div class="mhead">${heads}</div><div class="mgrid">${cells}</div></div>`;
+  };
+
+  // ---- timeline
+  const timelineHtml = () => {
+    const col = new Map(days.map((d, i) => [d, i]));
+    const people = new Map();
+    for (const l of list) {
+      const k = personKey(l);
+      if (!people.has(k)) people.set(k, { key: k, sample: l, leaves: [] });
+      people.get(k).leaves.push(l);
+    }
+    const groups = DEPTS.map((d) => [d, [...people.values()].filter((p) => p.sample.deptGroup === d)
+      .sort((x, y) => Math.min(...x.leaves.map((l) => toMs(l.start))) - Math.min(...y.leaves.map((l) => toMs(l.start))) || x.sample.name.localeCompare(y.sample.name))]).filter((g) => g[1].length);
+    const cls = (d) => `${isWeekend(d) ? 'we' : ''} ${d === t ? 'today' : ''} ${d === c.sel ? 'picked' : ''}`;
+    const cells = () => days.map((d, i) => `<div class="cell ${cls(d)}" style="grid-column:${i + 2}"></div>`).join('');
+    const bars = (p) => p.leaves.map((l) => {
+      // Clip to the visible window; with weekends hidden, snap to the nearest shown day.
+      let s = l.start < a ? a : l.start, e = (l.end || l.start) > b ? b : (l.end || l.start);
+      while (!col.has(s) && s <= e) s = addDays(s, 1);
+      while (!col.has(e) && e >= s) e = addDays(e, -1);
+      if (s > e) return '';
+      const i0 = col.get(s), i1 = col.get(e);
+      const half = l.days != null && l.days < 1;
+      const span = i1 - i0 + 1;
+      const label = span >= 3 ? `${typeShort(l.type)} · ${daysLabel(l.days)}` : span === 2 ? typeShort(l.type) : '';
+      return `<div class="bar ${l.approval === 'Pending' ? 'pending' : ''} ${half ? 'half' : ''} ${l.start < a ? 'cut-l' : ''} ${(l.end || l.start) > b ? 'cut-r' : ''}" style="--c:${typeColor(l.type)};grid-column:${i0 + 2} / ${i1 + 3}" data-leave="${l.id}" data-tip="${tipLeave(l)}">${esc(label)}</div>`;
+    }).join('');
+    const capMax = Math.max(1, maxOff);
+    return `<div class="card cal"><div class="cal-grid" style="--n:${days.length};min-width:${240 + days.length * 32}px">
+      <div class="cal-row cal-head"><div class="who">${people.size} ${people.size === 1 ? 'person' : 'people'} with leave</div>
+        ${days.map((d, i) => { const dt = new Date(toMs(d)); return `<div class="day ${cls(d)} ${dt.getUTCDate() === 1 && i ? 'm1' : ''}" style="grid-column:${i + 2}" data-day="${d}">${WD[dt.getUTCDay()].slice(0, 2)}<b>${dt.getUTCDate()}</b></div>`; }).join('')}</div>
+      <div class="cal-row cal-cap"><div class="who">People out${info('calCount')}</div>${days.map((d, i) => { const k = offOn.get(d); return `<div class="cell ${cls(d)} ${k && k === maxOff && maxOff > 1 ? 'hi' : ''}" style="grid-column:${i + 2}" data-day="${d}" ${k ? `data-tip="${dayTip(d)}"` : ''}>${k ? `<span>${k}</span><i style="height:${Math.max(4, (k / capMax) * 28)}px"></i>` : ''}</div>`; }).join('')}</div>
+      ${groups.length ? groups.map(([g, ps]) => `<div class="cal-group">${esc(g)}<span class="n">${ps.length} ${ps.length === 1 ? 'person' : 'people'}</span></div>` + ps.map((p) => {
+        const tot = round1(sum(p.leaves.filter((l) => l.approval === 'Approved'), (l) => daysInRange(l, a, b)));
+        return `<div class="cal-row"><div class="who" data-person="${esc(p.key)}">${avatar(p.sample, 'sm')}<div class="pmain"><div class="pname">${esc(p.sample.name)}</div><div class="pmeta">${esc(p.sample.dept || p.sample.deptGroup)}</div></div>${tot ? `<span class="tot" title="Approved days in view">${fmtNum(tot)}d</span>` : ''}</div>${cells()}${bars(p)}</div>`;
+      }).join('')).join('')
       : `<div class="empty" style="padding:50px 0">No leave in this period${state.dept !== 'All' ? ' for ' + esc(state.dept) : ''}</div>`}
     </div></div>`;
+  };
+
+  // ---- day inspector
+  const inspectorHtml = () => {
+    const d = c.sel, dt = new Date(toMs(d));
+    const ps = peopleOn(d);
+    const off = ps.filter((x) => x.l.approval === 'Approved');
+    const byDept = DEPTS.map((g) => [g, ps.filter((x) => x.l.deptGroup === g)]).filter(([, xs]) => xs.length);
+    const row = (x) => {
+      const l = x.l, end = l.end || l.start;
+      const when = x.w < 1 ? `${daysLabel(x.w)} that day` : l.start === end ? 'this day only' : `${fmtDate(l.start, { wd: false })} – ${fmtDate(end, { wd: false })}`;
+      return `<div class="irow" data-leave="${l.id}">${avTyped(l, '')}<div class="pmain"><div class="pname">${esc(l.name)}</div><div class="pmeta">${esc(typeShort(l.type))} · ${esc(when)}</div></div>
+        <div class="pend">${l.approval === 'Pending' ? statusPill('Pending') : `<span>Back <b>${esc(fmtDate(nextWorkday(end), { wd: true }))}</b></span>`}</div></div>`;
+    };
+    const top = busiest.slice(0, 5);
+    const rel = d === t ? 'Today' : relDay(d)[0].toUpperCase() + relDay(d).slice(1);
+    return `<div class="card inspector">
+      <div class="ins-h">
+        <div class="ins-top"><div style="flex:1;min-width:0"><div class="eyebrow">${esc(rel)}${info('calDay')}</div>
+          <div class="ins-day">${WD_FULL[dt.getUTCDay()]}</div><div class="ins-date">${dt.getUTCDate()} ${MONTH_FULL[dt.getUTCMonth()]} ${dt.getUTCFullYear()}</div></div>
+          <button class="icon-btn" data-step="-1" aria-label="Previous day" ${inView.indexOf(d) <= 0 && !month ? 'disabled' : ''}>‹</button><button class="icon-btn" data-step="1" aria-label="Next day" ${inView.indexOf(d) >= inView.length - 1 && !month ? 'disabled' : ''}>›</button></div>
+        <div class="ins-nums"><div><b>${off.length}</b><span>out</span></div><div><b style="${ps.length - off.length ? 'color:var(--warn)' : ''}">${ps.length - off.length}</b><span>pending</span></div><div><b>${fmtNum(round1(sum(off, (x) => x.w)))}</b><span>days off</span></div></div>
+      </div>
+      <div class="ins-b">${byDept.length ? byDept.map(([g, xs]) => `<div class="ins-g"><span>${esc(g)}</span><span>${xs.length}</span></div>${xs.map(row).join('')}`).join('')
+        : `<div class="ins-empty"><div class="big">${isWeekend(d) ? '☾' : '✓'}</div>${isWeekend(d) ? 'Weekend' : 'Everyone is in'}</div>`}</div>
+      ${top.length ? `<div class="ins-f"><div class="eyebrow">Busiest days in view</div><div class="busy">${top.map((x) => `<button data-day="${x}"><span>${esc(fmtDate(x))}</span><span class="track"><i style="width:${(offOn.get(x) / Math.max(maxOff, 1)) * 100}%"></i></span><b class="num">${offOn.get(x)}</b></button>`).join('')}</div></div>` : ''}
+    </div>`;
+  };
+
+  el.innerHTML = `
+    <div class="cal-top">
+      <div class="cal-title"><div class="eyebrow">Team calendar · ${esc(rangeLabel)}</div><h2>${title}</h2></div>
+      <div class="spacer"></div>
+      <div class="cal-nav"><button class="icon-btn" data-cal="prev" aria-label="Earlier">‹</button><button class="btn" data-cal="today">Today</button><button class="icon-btn" data-cal="next" aria-label="Later">›</button></div>
+      <div class="seg pill" id="calView">${[['month', 'Month'], ['timeline', 'Timeline']].map(([k, lab]) => `<button class="${c.view === k ? 'on' : ''}" data-view="${k}">${lab}</button>`).join('')}</div>
+    </div>
+    <div class="card cal-kpis">
+      <div><div class="kb"><div class="k">People off${info('calKpi')}</div><div class="v">${peopleOff}</div><div class="s">approved leave in view</div></div>
+        ${sparkDays.length > 1 ? `<div class="spark" aria-hidden="true">${sparkDays.map((d) => `<i class="${d === t ? 'now' : ''}" style="height:${(offOn.get(d) / Math.max(maxOff, 1)) * 100}%"></i>`).join('')}</div>` : ''}</div>
+      <div><div class="kb"><div class="k">Days booked</div><div class="v">${fmtNum(round1(daysBooked))}</div><div class="s">${TYPES.map((ty) => [ty, sum(apprIn.filter((l) => l.type === ty), (l) => daysInRange(l, a, b))]).filter(([, n]) => n).map(([ty, n]) => `${fmtNum(round1(n))} ${typeShort(ty).toLowerCase()}`).join(' · ') || 'none'}</div></div></div>
+      ${busiest.length ? `<button data-day="${busiest[0]}"><div class="kb"><div class="k">Busiest day</div><div class="v">${esc(fmtDate(busiest[0]))}</div><div class="s">${plural(maxOff, 'person')} out`.replace('persons', 'people') + `</div></div></button>` : `<div><div class="kb"><div class="k">Busiest day</div><div class="v">—</div><div class="s">nobody is out</div></div></div>`}
+      <button data-go="approvals"><div class="kb"><div class="k">Awaiting approval</div><div class="v" style="${pendIn.length ? 'color:var(--warn)' : ''}">${pendIn.length}</div><div class="s">${pendIn.length ? 'requests in this period · review →' : 'nothing to decide'}</div></div></button>
+    </div>
+    <div class="cal-bar">
+      ${month ? '' : `<div class="seg pill">${[2, 4, 6].map((w) => `<button class="${!c.custom && c.weeks === w ? 'on' : ''}" data-weeks="${w}">${w} weeks</button>`).join('')}<button class="${c.custom ? 'on' : ''}" data-weeks="custom">Custom</button></div>
+      ${c.custom ? `<label class="check">From <input type="date" class="sel" id="calFrom" value="${a}"></label><label class="check">To <input type="date" class="sel" id="calTo" value="${b}"></label>${info('calRange')}` : ''}`}
+      <label class="toggle"><input type="checkbox" id="calPend" ${c.pending ? 'checked' : ''}>Pending</label>${info('calPending')}
+      <label class="toggle"><input type="checkbox" id="calWe" ${c.weekends ? 'checked' : ''}>Weekends</label>
+      <div class="spacer"></div>
+      <div class="legend">${TYPES.map((ty) => `<span><i style="--c:${typeColor(ty)}"></i>${typeShort(ty)}</span>`).join('')}<span><i class="hatch"></i>Pending</span>
+        ${month ? `<span class="heatkey">Fewer${[0, 14, 26, 40].map((h) => `<i style="background:color-mix(in srgb, var(--accent) ${h}%, var(--surface))"></i>`).join('')}More</span>${info('calMonth')}` : `<span><i style="--c:var(--faint);height:5px"></i>Half day</span>${info('calBars')}`}</div>
+    </div>
+    <div class="cal-layout">
+      <div style="min-width:0">${month ? monthHtml() : timelineHtml()}</div>
+      ${inspectorHtml()}
+    </div>`;
 
   el.querySelectorAll('[data-cal]').forEach((btn) => btn.onclick = () => {
     const k = btn.dataset.cal;
-    if (c.custom) {
-      // Custom range: arrows move by the range's own length; Today keeps the length and starts this week
-      const shift = k === 'today' ? diffDays(a, mondayOf(t)) : (k === 'next' ? 1 : -1) * n;
+    if (k === 'today') c.sel = t;
+    if (month) c.month = k === 'today' ? 0 : c.month + (k === 'next' ? 1 : -1);
+    else if (c.custom) {
+      // Custom range: arrows move by the range's own length; Today keeps the length and starts today
+      const shift = k === 'today' ? diffDays(a, t) : (k === 'next' ? 1 : -1) * (diffDays(a, b) + 1);
       c.custom = { from: addDays(a, shift), to: addDays(b, shift) };
     } else c.offset = k === 'today' ? 0 : c.offset + (k === 'next' ? 1 : -1) * Math.max(1, c.weeks / 2);
     renderCalendar();
   });
+  $('#calView').onclick = (e) => {
+    const v = e.target.closest('[data-view]')?.dataset.view; if (!v || v === c.view) return;
+    c.view = v; save('calView', v);
+    // Month keeps the selected day in view; the timeline always opens on the weeks ahead
+    if (v === 'month') c.month = (+c.sel.slice(0, 4) - +t.slice(0, 4)) * 12 + (+c.sel.slice(5, 7) - +t.slice(5, 7));
+    else if (!c.custom) { c.offset = 0; c.sel = t; }
+    renderCalendar();
+  };
+  el.querySelectorAll('[data-day]').forEach((x) => x.onclick = () => {
+    const d = x.dataset.day;
+    // A padded day from the next or previous month opens that month
+    if (month && (d < a || d > b)) c.month += d < a ? -1 : 1;
+    else if (!month && (d < a || d > b)) return;
+    c.sel = d; hideTip(); renderCalendar();
+  });
+  el.querySelectorAll('[data-step]').forEach((x) => x.onclick = () => {
+    let d = addDays(c.sel, +x.dataset.step);
+    while (!c.weekends && isWeekend(d)) d = addDays(d, +x.dataset.step);
+    if (month && (d < a || d > b)) c.month += d < a ? -1 : 1;
+    else if (!month && !inView.includes(d)) return;
+    c.sel = d; renderCalendar();
+  });
   el.querySelectorAll('[data-weeks]').forEach((btn) => btn.onclick = () => {
-    if (btn.dataset.weeks === 'custom') { c.custom ??= { from: a, to: b }; } else { c.custom = null; c.weeks = +btn.dataset.weeks; save('calWeeks', c.weeks); }
+    // 2/4/6 weeks always means the weeks ahead, starting today
+    if (btn.dataset.weeks === 'custom') { c.custom ??= { from: a, to: b }; } else { c.custom = null; c.offset = 0; c.sel = t; c.weeks = +btn.dataset.weeks; save('calWeeks', c.weeks); }
     renderCalendar();
   });
   const setRange = () => {
@@ -1002,7 +1263,7 @@ function renderCalendar() {
     if (diffDays(from, to) > CAL_MAX_DAYS - 1) to = addDays(from, CAL_MAX_DAYS - 1);
     c.custom = { from, to }; renderCalendar();
   };
-  if (c.custom) { $('#calFrom').onchange = setRange; $('#calTo').onchange = setRange; }
+  if (c.custom && !month) { $('#calFrom').onchange = setRange; $('#calTo').onchange = setRange; }
   $('#calPend').onchange = (e) => { c.pending = e.target.checked; save('calPending', c.pending); renderCalendar(); };
   $('#calWe').onchange = (e) => { c.weekends = e.target.checked; save('calWeekends', c.weekends); renderCalendar(); };
 }
