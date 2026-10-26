@@ -1,0 +1,34 @@
+# DigitalOcean App Platform spec. Create the app from this file (Create App → "Import app spec"
+# or `doctl apps create --spec .do/app.yaml`), then fill in the secret values in the app's Settings.
+name: leave-tracker
+services:
+  - name: web
+    github:
+      repo: Muhammad-Saim-Ecom/leave-tracker
+      branch: main
+      deploy_on_push: true
+    environment_slug: node-js
+    run_command: npm start
+    http_port: 8090
+    # Leave data is cached in memory, so run exactly one instance.
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    health_check:
+      http_path: /healthz
+      # The first full read from Notion takes a little while after boot.
+      initial_delay_seconds: 60
+      period_seconds: 30
+      failure_threshold: 6
+    envs:
+      - key: NOTION_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+      - key: BASIC_AUTH_USER
+        scope: RUN_TIME
+        type: SECRET
+      - key: BASIC_AUTH_PASS
+        scope: RUN_TIME
+        type: SECRET
+      - key: PORT
+        scope: RUN_TIME
+        value: "8090"
