@@ -81,7 +81,7 @@
   a { color: var(--link); text-decoration: none; }
   a:hover { text-decoration: underline; }
   button, input, select { font: inherit; color: inherit; }
-  .wrap { max-width: 1480px; margin: 0 auto; padding: 0 24px; }
+  .wrap { margin: 0 auto; padding: 0 28px; }
   .num { font-variant-numeric: tabular-nums; }
   .muted { color: var(--muted); }
   .faint { color: var(--faint); }
@@ -95,10 +95,7 @@
   }
   .topbar .row1 { display: flex; align-items: center; gap: 18px; height: 60px; }
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: -.015em; white-space: nowrap; }
-  .logo {
-    width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
-    background: linear-gradient(135deg, var(--accent), #7c5ce6); color: #fff; font-size: 14px;
-  }
+  .logo { width: 30px; height: 30px; border-radius: 8px; display: block; flex: none; }
   .tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
   .tabs::-webkit-scrollbar { display: none; }
   .tab {
@@ -138,8 +135,6 @@
   .chip .n { opacity: .65; font-variant-numeric: tabular-nums; }
 
   main.wrap { padding-top: 22px; padding-bottom: 64px; }
-  /* The calendar uses the whole screen so long ranges fit without scrolling sideways */
-  body.wide .wrap { max-width: none; padding: 0 28px; }
   .view { display: none; }
   .view.active { display: block; }
 
@@ -568,7 +563,7 @@
 <header class="topbar">
   <div class="wrap">
     <div class="row1">
-      <div class="brand"><div class="logo">✈</div>Leave Tracker</div>
+      <div class="brand"><img class="logo" src="/apple-touch-icon.png?v=2" alt="">Leave Tracker</div>
       <nav class="tabs" id="tabs">
         <button class="tab" data-tab="overview">Overview</button>
         <button class="tab" data-tab="approvals">Approvals <span class="badge" id="b-approvals" hidden></span></button>
@@ -843,7 +838,6 @@ $('#deptFilters').addEventListener('click', (e) => {
 
 function setTab(tab) {
   state.tab = tab;
-  document.body.classList.toggle('wide', tab === 'calendar');
   document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === 'v-' + tab));
   if (location.hash !== '#' + tab) history.replaceState(null, '', '#' + tab);
