@@ -1,0 +1,1541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leave Tracker</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=2">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface-2: #f6f7f9;
+    --surface-3: #eceef2;
+    --border: #e4e7ec;
+    --border-strong: #d0d5dd;
+    --text: #101828;
+    --muted: #5d6675;
+    --faint: #98a2b3;
+    --link: #1f5fd6;
+    --accent: #3b5bdb;
+
+    /* Status (reserved: always shown with an icon and a label) */
+    --ok: #12a150;
+    --warn: #e07b00;
+    --bad: #d63a3a;
+    --off: #98a2b3;
+
+    /* Leave types: categorical slots 1-4, fixed order */
+    --t-vacation: #2a78d6;
+    --t-sick: #eb6834;
+    --t-emergency: #1baf7a;
+    --t-maternity: #eda100;
+    --t-other: #98a2b3;
+
+    --shadow: 0 1px 2px rgba(16, 24, 40, .05);
+    --shadow-lg: 0 1px 3px rgba(16, 24, 40, .06), 0 8px 24px -6px rgba(16, 24, 40, .08);
+    --radius: 14px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0e12;
+      --surface: #15181e;
+      --surface-2: #1a1e25;
+      --surface-3: #222730;
+      --border: #262b34;
+      --border-strong: #353c47;
+      --text: #eceef2;
+      --muted: #a0a8b5;
+      --faint: #677080;
+      --link: #86aaff;
+      --accent: #7d97ff;
+      --ok: #3ccf7c;
+      --warn: #ffa53a;
+      --bad: #ff6b6b;
+      --off: #6f7886;
+      --t-vacation: #3987e5;
+      --t-sick: #d95926;
+      --t-emergency: #199e70;
+      --t-maternity: #c98500;
+      --t-other: #6f7886;
+      --shadow: none;
+      --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, .5);
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button, input, select { font: inherit; color: inherit; }
+  .wrap { max-width: 1480px; margin: 0 auto; padding: 0 24px; }
+  .num { font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 30;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    backdrop-filter: saturate(1.4) blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .row1 { display: flex; align-items: center; gap: 18px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: -.015em; white-space: nowrap; }
+  .logo {
+    width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), #7c5ce6); color: #fff; font-size: 14px;
+  }
+  .tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    border: 0; background: none; cursor: pointer; padding: 7px 12px; border-radius: 8px;
+    font-size: 13.5px; font-weight: 500; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 7px;
+  }
+  .tab:hover { background: var(--surface-2); color: var(--text); }
+  .tab.active { background: var(--surface-3); color: var(--text); font-weight: 600; }
+  .tab .badge {
+    min-width: 19px; height: 19px; padding: 0 6px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
+    display: inline-grid; place-items: center; background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn);
+  }
+  .spacer { flex: 1; }
+  .sync { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .sync .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; margin-right: 6px; }
+  .sync.err .dot { background: var(--bad); }
+  .btn {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
+    padding: 5px 11px; cursor: pointer; font-size: 12.5px; font-weight: 500; box-shadow: var(--shadow); white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { background: var(--surface-2); text-decoration: none; }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+
+  .filters { display: flex; align-items: center; gap: 8px; padding: 10px 0 12px; overflow-x: auto; scrollbar-width: none; }
+  .filters::-webkit-scrollbar { display: none; }
+  .filters .label { font-size: 12px; color: var(--faint); font-weight: 500; margin-right: 2px; white-space: nowrap; }
+  .chip {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 999px; cursor: pointer;
+    padding: 4px 11px; font-size: 12.5px; font-weight: 500; color: var(--muted); white-space: nowrap; display: inline-flex; gap: 6px; align-items: center;
+  }
+  .chip:hover { border-color: var(--border-strong); color: var(--text); }
+  .chip.on { background: var(--text); border-color: var(--text); color: var(--surface); }
+  .chip .n { opacity: .65; font-variant-numeric: tabular-nums; }
+
+  main.wrap { padding-top: 22px; padding-bottom: 64px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ---------- Cards, tiles ---------- */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .card-h { display: flex; align-items: center; gap: 10px; padding: 14px 18px 0; }
+  .card-h h3 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.005em; }
+  .card-h .sub { font-size: 12.5px; color: var(--muted); }
+  .card-b { padding: 12px 18px 16px; }
+  .grid { display: grid; gap: 16px; }
+  .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .g5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g-main { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; }
+  .stack { display: grid; gap: 16px; align-content: start; }
+  .section-title { display: flex; align-items: baseline; gap: 10px; margin: 26px 0 10px; }
+  .section-title h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .section-title .sub { font-size: 12.5px; color: var(--muted); }
+  .section-title:first-child { margin-top: 0; }
+
+  .tile { padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+  .tile:hover { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }
+  .tile .k { font-size: 12.5px; color: var(--muted); font-weight: 500; display: flex; align-items: center; gap: 7px; }
+  .tile .v { font-size: 30px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .tile .s { font-size: 12.5px; color: var(--muted); }
+  .tile.alert { border-color: color-mix(in srgb, var(--warn) 45%, var(--border)); }
+  .tile.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow-lg); background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+  .tile .icon { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 12px; background: var(--surface-3); }
+
+  /* ---------- People rows ---------- */
+  .av {
+    width: 32px; height: 32px; border-radius: 50%; flex: none; display: grid; place-items: center; overflow: hidden;
+    background: var(--surface-3); color: var(--muted); font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
+  }
+  .av img { width: 100%; height: 100%; object-fit: cover; }
+  .av.sm { width: 24px; height: 24px; font-size: 9.5px; }
+  .av.lg { width: 48px; height: 48px; font-size: 15px; }
+  .plist { display: flex; flex-direction: column; }
+  .prow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); cursor: pointer; }
+  .prow:first-child { border-top: 0; }
+  .prow:hover .pname { color: var(--link); }
+  .pmain { flex: 1; min-width: 0; }
+  .pname { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pmeta { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pend { text-align: right; font-size: 12.5px; color: var(--muted); white-space: nowrap; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+  .empty { padding: 26px 0; text-align: center; color: var(--faint); font-size: 13px; }
+
+  /* ---------- Pills ---------- */
+  .type {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; white-space: nowrap; color: var(--text);
+  }
+  .type::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--c); flex: none; }
+  .st {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+    color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent);
+  }
+  .fin { font-size: 11px; font-weight: 600; letter-spacing: .03em; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--border-strong); color: var(--muted); white-space: nowrap; }
+  .fin.new { color: var(--text); border-color: var(--text); }
+  .tag { font-size: 11.5px; padding: 1px 7px; border-radius: 6px; background: var(--surface-3); color: var(--muted); white-space: nowrap; }
+
+  /* ---------- Chart ---------- */
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; overflow: visible; }
+  .chart .gridline { stroke: var(--border); stroke-width: 1; }
+  .chart .axis { fill: var(--faint); font-size: 11px; }
+  .chart .axis.now { fill: var(--text); font-weight: 600; }
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font-size: 12.5px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+  .legend i.hatch { background: repeating-linear-gradient(45deg, var(--faint) 0 2px, transparent 2px 5px); border: 1px dashed var(--faint); }
+  .tip {
+    position: fixed; z-index: 60; pointer-events: none; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: var(--shadow-lg); padding: 9px 12px; font-size: 12.5px; min-width: 160px; max-width: 320px; display: none;
+    font-weight: 400; letter-spacing: 0; text-transform: none; text-align: left; white-space: normal; line-height: 1.5; color: var(--text);
+  }
+  .tip .tx p { margin: 0 0 6px; }
+  .tip .tx p:last-child { margin: 0; }
+  .tip .tx b { font-weight: 600; }
+  /* Drawn icon (not a font glyph) so it sits on the text's centre line at every size */
+  .info {
+    display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; flex: none;
+    vertical-align: middle; position: relative; top: -.08em; margin-left: 5px; color: var(--faint); cursor: help; border-radius: 50%;
+  }
+  .info svg { display: block; width: 14px; height: 14px; }
+  .info:hover, .info:focus-visible { color: var(--accent); outline: none; }
+  .info:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+  /* Labels that carry an icon: line the icon up with the text's centre */
+  .card-h h3, .group-h h3, .section-title h2, .filters .label { display: inline-flex; align-items: center; }
+  .flag { color: var(--warn); font-weight: 700; cursor: help; margin-left: 4px; }
+  .tip .t { font-weight: 600; margin-bottom: 4px; }
+  .tip .r { display: flex; justify-content: space-between; gap: 16px; }
+  .tip .r span:first-child { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+  .tip .r i { width: 8px; height: 8px; border-radius: 2px; background: var(--c); }
+
+  .hbar { display: grid; grid-template-columns: 150px 1fr 110px; align-items: center; gap: 10px; padding: 5px 0; font-size: 13px; }
+  .hbar .val { white-space: nowrap; }
+  .hbar .track { height: 10px; border-radius: 3px; background: var(--surface-2); overflow: hidden; display: flex; gap: 2px; }
+  .hbar .fill { height: 100%; background: var(--c, var(--accent)); border-radius: 0 3px 3px 0; }
+  .hbar .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .hbar .val b { color: var(--text); font-weight: 600; }
+
+  /* ---------- Approvals ---------- */
+  .req {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; padding: 16px 18px;
+    border-left: 3px solid var(--c, transparent);
+  }
+  .req + .req { border-top: 1px solid var(--border); }
+  .req .line1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .req .name { font-weight: 600; font-size: 14.5px; cursor: pointer; }
+  .req .name:hover { color: var(--link); }
+  .req .when { font-size: 15px; font-weight: 600; margin-top: 6px; letter-spacing: -.005em; }
+  .req .when .d { color: var(--muted); font-weight: 500; font-size: 13px; margin-left: 6px; }
+  .req .facts { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+  .req .facts b { color: var(--text); font-weight: 600; }
+  .req .note { margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: var(--surface-2); font-size: 13px; color: var(--text); white-space: pre-wrap; }
+  .req .warns { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+  .req .warns div { font-size: 12.5px; display: flex; gap: 7px; align-items: baseline; }
+  .req .warns .w { color: var(--warn); font-weight: 600; }
+  .req .actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+  .bal { display: inline-flex; align-items: center; gap: 6px; }
+  .bal .meter { width: 70px; height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; display: inline-flex; }
+  .bal .meter i { height: 100%; background: var(--c); }
+  .group-h { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--surface-2); border-radius: var(--radius) var(--radius) 0 0; }
+  .group-h h3 { margin: 0; font-size: 13.5px; font-weight: 600; }
+  .group-h .n { font-size: 12px; color: var(--muted); }
+
+  /* ---------- Calendar ---------- */
+  .cal-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .cal-controls h2 { margin: 0 8px 0 4px; font-size: 16px; font-weight: 600; min-width: 210px; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; background: none; padding: 5px 11px; font-size: 12.5px; font-weight: 500; cursor: pointer; color: var(--muted); }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.on { background: var(--surface-3); color: var(--text); font-weight: 600; }
+  .check { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); cursor: pointer; user-select: none; }
+  .cal { overflow-x: auto; }
+  .cal-grid { min-width: 100%; }
+  .cal-row { display: grid; grid-template-columns: 230px repeat(var(--n), minmax(30px, 1fr)); align-items: stretch; }
+  .cal-row > .who { position: sticky; left: 0; z-index: 3; background: var(--surface); padding: 6px 12px 6px 16px; display: flex; align-items: center; gap: 9px; border-right: 1px solid var(--border); min-width: 0; cursor: pointer; }
+  .cal-row > .who .pname { font-size: 13px; }
+  .cal-row > .who .pmeta { font-size: 11.5px; }
+  .cal-row .cell { border-left: 1px solid color-mix(in srgb, var(--border) 60%, transparent); grid-row: 1; min-height: 44px; }
+  .cal-row .cell.we { background: var(--surface-2); }
+  .cal-row .cell.today { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
+  .cal-row + .cal-row { border-top: 1px solid var(--border); }
+  .cal-head { position: sticky; top: 0; z-index: 4; background: var(--surface); border-bottom: 1px solid var(--border-strong); border-radius: var(--radius) var(--radius) 0 0; }
+  .cal-head .who { font-size: 12px; color: var(--muted); font-weight: 500; border-radius: var(--radius) 0 0 0; }
+  .cal-head .day { text-align: center; padding: 8px 0 6px; font-size: 11px; color: var(--faint); grid-row: 1; line-height: 1.25; }
+  .cal-head .day b { display: block; font-size: 13px; color: var(--text); font-weight: 600; }
+  .cal-head .day.we b { color: var(--faint); font-weight: 500; }
+  .cal-head .day.today b { color: #fff; background: var(--accent); border-radius: 6px; display: inline-block; padding: 0 5px; }
+  .cal-head .day.m1 { box-shadow: inset 1px 0 0 var(--border-strong); }
+  .cal-count .who { font-size: 12px; color: var(--muted); }
+  .cal-count .cell { min-height: 30px; display: grid; place-items: center; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .cal-count .cell.hi { color: var(--warn); }
+  .cal-group { padding: 8px 16px; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); border-top: 1px solid var(--border); position: sticky; left: 0; }
+  .bar {
+    grid-row: 1; align-self: center; height: 26px; margin: 0 2px; border-radius: 6px; z-index: 2; cursor: pointer;
+    background: var(--c); color: #fff; font-size: 11.5px; font-weight: 600; padding: 0 8px; display: flex; align-items: center;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0;
+  }
+  .bar.half { height: 14px; }
+  .bar.pending {
+    background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--c) 28%, transparent) 0 4px, transparent 4px 8px), var(--surface);
+    color: var(--text); box-shadow: inset 0 0 0 1.5px var(--c);
+  }
+  .bar:hover { filter: brightness(1.06); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--c); }
+  .bar.cut-l { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
+  .bar.cut-r { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
+
+  /* ---------- Tables ---------- */
+  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .toolbar > div { min-width: 0; }
+  .search {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 10px 6px 30px; font-size: 13px; width: 240px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%2398a2b3' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: 10px center;
+  }
+  .search:focus, .sel:focus { outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: 0; border-color: var(--accent); }
+  .sel { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 8px; font-size: 12.5px; max-width: 220px; }
+  .summary { font-size: 12.5px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+  .summary b { color: var(--text); }
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; font-size: 11.5px; font-weight: 600; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--border);
+    white-space: nowrap; background: var(--surface-2); position: sticky; top: 0; cursor: pointer; user-select: none;
+  }
+  th:first-child { border-radius: var(--radius) 0 0 0; }
+  th:last-child { border-radius: 0 var(--radius) 0 0; }
+  th.r, td.r { text-align: right; }
+  th .arr { opacity: .5; margin-left: 3px; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover td { background: var(--surface-2); }
+  tr.grp td { background: var(--surface-2); font-weight: 600; font-size: 12.5px; cursor: default; padding: 8px 12px; }
+  tr.grp:hover td { background: var(--surface-2); }
+  td .who { display: flex; align-items: center; gap: 10px; }
+  td .who .pname { font-size: 13px; }
+  td .who .pmeta { font-size: 11.5px; }
+  td.note-c { max-width: 280px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+  .more { display: flex; justify-content: center; padding: 14px; }
+
+  /* ---------- People grid ---------- */
+  .pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .pcard { padding: 16px; cursor: pointer; display: flex; flex-direction: column; gap: 12px; transition: border-color .15s, box-shadow .15s; }
+  .pcard:hover { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }
+  .pcard .top { display: flex; gap: 12px; align-items: center; }
+  .pcard .big { font-size: 22px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .stackbar { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; background: var(--surface-2); }
+  .stackbar i { background: var(--c); height: 100%; }
+  .kv { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); }
+  .kv b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .balances { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .balances div { background: var(--surface-2); border-radius: 8px; padding: 6px 9px; font-size: 11.5px; color: var(--muted); }
+  .balances b { display: block; font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .next { font-size: 12.5px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
+
+  /* ---------- Drawer ---------- */
+  .scrim { position: fixed; inset: 0; background: rgba(10, 12, 16, .35); z-index: 50; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); z-index: 51; background: var(--surface); border-left: 1px solid var(--border);
+    box-shadow: var(--shadow-lg); transform: translateX(100%); transition: transform .22s ease; display: flex; flex-direction: column;
+  }
+  .drawer.open { transform: none; }
+  .drawer .dh { display: flex; align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .drawer .dh h2 { margin: 0; font-size: 17px; font-weight: 600; }
+  .drawer .db { padding: 18px 20px 40px; overflow-y: auto; flex: 1; }
+  .x { border: 0; background: var(--surface-2); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 16px; color: var(--muted); }
+  .x:hover { background: var(--surface-3); color: var(--text); }
+  .dl { display: grid; grid-template-columns: 170px 1fr; gap: 9px 14px; font-size: 13px; }
+  .dl dt { color: var(--muted); }
+  .dl dd { margin: 0; }
+  .hist { display: flex; flex-direction: column; }
+  .hist .h { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 10px 0; border-top: 1px solid var(--border); cursor: pointer; }
+  .hist .h:hover .hd { color: var(--link); }
+  .hist .hd { font-weight: 600; font-size: 13px; }
+  .hist .hm { font-size: 12px; color: var(--muted); display: flex; gap: 10px; align-items: center; }
+  .yr { margin: 18px 0 2px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .04em; }
+
+  /* ---------- Finance ---------- */
+  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
+  .steps > div { padding: 14px 18px; display: flex; gap: 12px; }
+  .steps > div + div { border-left: 1px solid var(--border); }
+  .steps .n { width: 24px; height: 24px; border-radius: 50%; flex: none; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--surface-3); color: var(--text); }
+  .steps h4 { margin: 1px 0 3px; font-size: 13.5px; font-weight: 600; }
+  .steps p { margin: 0; font-size: 12.5px; color: var(--muted); }
+  .formula { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--muted); background: var(--surface-2); border-radius: 0 0 var(--radius) var(--radius); }
+  .formula b { color: var(--text); }
+  .formula .eq { font-weight: 700; color: var(--faint); }
+  .todo { display: flex; gap: 8px; align-items: baseline; padding: 10px 18px; font-size: 12.5px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+  .todo b { font-weight: 600; }
+  td .neg { color: var(--warn); font-weight: 600; }
+  tr.person td { background: var(--surface-2); font-weight: 600; border-top: 1px solid var(--border-strong); }
+  tr.person:hover td { background: var(--surface-3); }
+  tr.sub td:first-child { padding-left: 54px; }
+
+  .loading { padding: 80px 0; text-align: center; color: var(--muted); }
+  .err-banner { margin-top: 14px; padding: 10px 14px; border-radius: 10px; font-size: 13px; background: color-mix(in srgb, var(--bad) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent); }
+
+  @media (max-width: 1100px) {
+    .g4, .g5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .g-main, .g2 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 720px) {
+    .wrap { padding: 0 16px; }
+    .topbar .row1 { height: auto; flex-wrap: wrap; padding: 10px 0 4px; gap: 8px 12px; }
+    .tabs { order: 3; width: 100%; }
+    .sync .ago, .sync a.btn { display: none; }
+    .toolbar .spacer { display: none; }
+    .req .facts { gap: 4px 12px; }
+    .g4, .g5 { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .tile .v { font-size: 24px; }
+    .req { grid-template-columns: auto minmax(0, 1fr); }
+    .req .actions { grid-column: 1 / -1; flex-direction: row; justify-content: flex-start; }
+    .cal-row { grid-template-columns: 150px repeat(var(--n), minmax(30px, 1fr)); }
+    .hbar { grid-template-columns: 110px 1fr 60px; }
+    .search { width: 100%; }
+    .summary { margin-left: 0; }
+    .dl { grid-template-columns: 130px 1fr; }
+    .steps { grid-template-columns: 1fr; }
+    .steps > div + div { border-left: 0; border-top: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <div class="row1">
+      <div class="brand"><div class="logo">✈</div>Leave Tracker</div>
+      <nav class="tabs" id="tabs">
+        <button class="tab" data-tab="overview">Overview</button>
+        <button class="tab" data-tab="approvals">Approvals <span class="badge" id="b-approvals" hidden></span></button>
+        <button class="tab" data-tab="calendar">Calendar</button>
+        <button class="tab" data-tab="requests">All requests</button>
+        <button class="tab" data-tab="finance">Finance <span class="badge" id="b-finance" hidden></span></button>
+        <button class="tab" data-tab="people">People</button>
+      </nav>
+      <div class="spacer"></div>
+      <div class="sync" id="sync"><span><span class="dot"></span><span class="ago" id="ago">Loading…</span></span><span id="syncInfo"></span>
+        <button class="btn" id="refresh" title="Pull the latest changes from Notion">↻ Refresh</button>
+        <a class="btn" href="https://www.notion.so/1109ca8db0d78035960ee38656533cdb" target="_blank" rel="noopener" title="Open the Leave Tracker in Notion">Notion ↗</a>
+      </div>
+    </div>
+    <div class="filters" id="deptFilters"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="errBanner" class="err-banner" hidden></div>
+  <div id="loading" class="loading">Loading leave requests from Notion…</div>
+  <section class="view" id="v-overview"></section>
+  <section class="view" id="v-approvals"></section>
+  <section class="view" id="v-calendar"></section>
+  <section class="view" id="v-requests"></section>
+  <section class="view" id="v-finance"></section>
+  <section class="view" id="v-people"></section>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="dh"><div id="dTitle" style="flex:1;min-width:0"></div><button class="x" id="dClose" aria-label="Close">✕</button></div>
+  <div class="db" id="dBody"></div>
+</aside>
+<div class="tip" id="tip"></div>
+
+<script>
+'use strict';
+
+// ---------------------------------------------------------------- constants
+const TYPES = ['Vacation Leave', 'Sick Leave', 'Emergency Leave', 'Maternity Leave'];
+const TYPE_COLOR = { 'Vacation Leave': 'var(--t-vacation)', 'Sick Leave': 'var(--t-sick)', 'Emergency Leave': 'var(--t-emergency)', 'Maternity Leave': 'var(--t-maternity)' };
+const typeColor = (t) => TYPE_COLOR[t] || 'var(--t-other)';
+const typeShort = (t) => t.replace(/ Leave$/, '');
+const BAL_KEY = { 'Vacation Leave': 'vacation', 'Sick Leave': 'sick', 'Emergency Leave': 'emergency' };
+const STATUS = {
+  Pending: { c: 'var(--warn)', icon: '◷', label: 'Awaiting approval' },
+  Approved: { c: 'var(--ok)', icon: '✓', label: 'Approved' },
+  Rejected: { c: 'var(--bad)', icon: '✕', label: 'Rejected' },
+  Cancelled: { c: 'var(--off)', icon: '⊘', label: 'Cancelled' },
+};
+const DEPTS = ['Engineering', 'Quality Inspection', 'Account Managers', 'Design', 'Operations', 'Unassigned'];
+const MS_DAY = 86400000;
+const CAL_MAX_DAYS = 186; // custom calendar range cap (about 6 months), so the grid stays usable
+
+// ---------------------------------------------------------------- state
+const store = (() => { try { return window.localStorage; } catch { return null; } })();
+const saved = (k, d) => { try { const v = store?.getItem('lt.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } };
+const save = (k, v) => { try { store?.setItem('lt.' + k, JSON.stringify(v)); } catch {} };
+
+const state = {
+  tab: 'overview',
+  dept: saved('dept', 'All'),
+  leaves: [],
+  version: -1,
+  fetchedAt: null,
+  approvalsManager: saved('approvalsManager', ''),
+  cal: { weeks: saved('calWeeks', 4), offset: 0, custom: null, pending: saved('calPending', true), weekends: saved('calWeekends', true) },
+  req: { q: '', status: saved('reqStatus', []), type: '', finance: '', manager: '', period: 'all', group: saved('reqGroup', 'none'), sort: saved('reqSort', ['createdAt', -1])[0], dir: saved('reqSort', ['createdAt', -1])[1], limit: 100 },
+  fin: { view: saved('finView', 'requests'), q: '', stage: '', finance: '', month: '', type: '', sort: 'createdAt', dir: -1, limit: 100 },
+  ppl: { q: '', year: new Date().getFullYear(), sort: 'days' },
+};
+
+// ---------------------------------------------------------------- helpers
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = (sel, el = document) => el.querySelector(sel);
+const pad = (n) => String(n).padStart(2, '0');
+const localISO = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const toMs = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10));
+const fromMs = (ms) => new Date(ms).toISOString().slice(0, 10);
+const addDays = (iso, n) => fromMs(toMs(iso) + n * MS_DAY);
+const dow = (iso) => new Date(toMs(iso)).getUTCDay();
+const isWeekend = (iso) => { const d = dow(iso); return d === 0 || d === 6; };
+const diffDays = (a, b) => Math.round((toMs(b) - toMs(a)) / MS_DAY);
+const mondayOf = (iso) => addDays(iso, -((dow(iso) + 6) % 7));
+const today = () => localISO();
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function fmtDate(iso, { wd = true, year = 'auto' } = {}) {
+  if (!iso) return '—';
+  const d = new Date(toMs(iso));
+  const showYear = year === true || (year === 'auto' && d.getUTCFullYear() !== new Date().getFullYear());
+  return `${wd ? WD[d.getUTCDay()] + ' ' : ''}${d.getUTCDate()} ${MON[d.getUTCMonth()]}${showYear ? ' ' + d.getUTCFullYear() : ''}`;
+}
+function fmtRange(l, opts) {
+  if (!l.start) return 'No dates';
+  if (!l.end || l.end === l.start) return fmtDate(l.start, opts);
+  return `${fmtDate(l.start, opts)} – ${fmtDate(l.end, opts)}`;
+}
+const fmtNum = (n) => (n == null ? '—' : Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100));
+function daysLabel(n) {
+  if (n == null) return '? days';
+  if (n === 0.5) return '½ day';
+  if (n === 0.25) return '¼ day';
+  if (n === 0.75) return '¾ day';
+  return `${fmtNum(n)} day${n === 1 ? '' : 's'}`;
+}
+function relDay(iso) {
+  const d = diffDays(today(), iso);
+  if (d === 0) return 'today';
+  if (d === 1) return 'tomorrow';
+  if (d === -1) return 'yesterday';
+  if (d > 1 && d < 14) return `in ${d} days`;
+  if (d < -1 && d > -14) return `${-d} days ago`;
+  if (d >= 14) return `in ${Math.round(d / 7)} weeks`;
+  return `${Math.round(-d / 7)} weeks ago`;
+}
+function ago(isoTs) {
+  const s = Math.max(0, (Date.now() - Date.parse(isoTs)) / 1000);
+  if (s < 45) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return `${Math.round(s / 86400)} days ago`;
+}
+const initials = (n) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+const avatar = (l, cls = '') => `<div class="av ${cls}">${l.avatar ? `<img src="${esc(l.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}${l.avatar ? '' : esc(initials(l.name))}</div>`;
+const typePill = (t) => `<span class="type" style="--c:${typeColor(t)}">${esc(typeShort(t))}</span>`;
+const statusPill = (a) => { const s = STATUS[a]; return `<span class="st" style="--c:${s.c}">${s.icon} ${s.label}</span>`; };
+const finPill = (f) => (f ? `<span class="fin ${f === 'NEW' ? 'new' : ''}">${f}</span>` : '<span class="faint">—</span>');
+const personKey = (l) => (l.email || l.name).toLowerCase();
+const overlaps = (l, a, b) => l.start && l.start <= b && (l.end || l.start) >= a;
+const deptLine = (l) => [l.dept || l.deptGroup, l.manager && `Manager: ${l.manager}`].filter(Boolean).join(' · ');
+const sum = (arr, f) => arr.reduce((t, x) => t + (f(x) || 0), 0);
+const plural = (n, w) => `${fmtNum(n)} ${w}${n === 1 ? '' : 's'}`;
+
+/** Weekdays a leave covers, each with its share of the request's day count (so ½-day and long leaves add up right). */
+function spread(l) {
+  if (l._spread) return l._spread;
+  const out = [];
+  if (l.start) {
+    const end = l.end || l.start;
+    const n = Math.min(Math.max(diffDays(l.start, end), 0), 400);
+    let days = [];
+    for (let i = 0; i <= n; i++) days.push(addDays(l.start, i));
+    const wd = days.filter((d) => !isWeekend(d));
+    if (wd.length) days = wd;
+    const total = l.days ?? days.length;
+    for (const d of days) out.push([d, total / days.length]);
+  }
+  return (l._spread = out);
+}
+const daysOf = (l) => l.days ?? spread(l).length;
+function daysInRange(l, a, b) { return sum(spread(l).filter(([d]) => d >= a && d <= b), (x) => x[1]); }
+
+const scoped = () => (state.dept === 'All' ? state.leaves : state.leaves.filter((l) => l.deptGroup === state.dept));
+const approved = (list) => list.filter((l) => l.approval === 'Approved');
+
+// ---------------------------------------------------------------- tooltip
+const tip = $('#tip');
+function showTip(html, ev) {
+  tip.innerHTML = html; tip.style.display = 'block';
+  const r = tip.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - 14;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+/** Places the tooltip under an element (used for tap and keyboard focus, where there is no mouse position). */
+function showTipAt(el) {
+  tip.innerHTML = el.dataset.tip; tip.style.display = 'block';
+  const a = el.getBoundingClientRect(), r = tip.getBoundingClientRect();
+  const x = Math.max(8, Math.min(a.left + a.width / 2 - r.width / 2, innerWidth - r.width - 8));
+  const y = a.bottom + 8 + r.height > innerHeight - 8 ? a.top - r.height - 8 : a.bottom + 8;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+const hideTip = () => { tip.style.display = 'none'; };
+document.addEventListener('mousemove', (ev) => {
+  const t = ev.target.closest?.('[data-tip]');
+  if (t) showTip(t.dataset.tip, ev); else if (!ev.target.closest?.('.chart')) hideTip();
+});
+document.addEventListener('focusin', (ev) => { if (ev.target.classList?.contains('info')) showTipAt(ev.target); });
+document.addEventListener('focusout', (ev) => { if (ev.target.classList?.contains('info')) hideTip(); });
+addEventListener('scroll', hideTip, { passive: true });
+
+// ---------------------------------------------------------------- glossary (text behind every ⓘ icon)
+const G = {
+  dept: `<p>Filters every tab to one department.</p><p>Notion has duplicate department names, so they're merged here:</p><p><b>Engineering</b>: Development, Lead Developer, Data, Architect, Engineering, Lead Engineering, After Shift Engineering, Workflow Automation, NetSuite<br><b>Quality Inspection</b>: QI and Quality Inspection<br><b>Account Managers</b>: Account Manager(s)<br><b>Design</b><br><b>Operations</b>: HR, Strategy, Management, Product, Customer Support, Executive Assistant, After Hours<br><b>Unassigned</b>: no department filled in</p>`,
+  sync: `<p>Everything here is read from the <b>✈️ Leave Tracker</b> page in Notion. This app can't change anything: approve, reject and edit requests in Notion.</p><p>Changes in Notion show up here within about a minute. <b>Refresh</b> pulls them right away.</p><p>Only <b>current employees</b> are shown: anyone whose Employment Status in Team Members is Resigned or Fired is left out.</p>`,
+
+  outToday: `<p>People whose <b>approved</b> leave covers today.</p><p>Requests still waiting for approval aren't counted. They're listed separately under "Not yet approved".</p>`,
+  outWeek: `<p>How many different people have <b>approved</b> leave on at least one day this week (Monday to Sunday).</p>`,
+  awaiting: `<p>Requests nobody has approved or rejected yet (the <b>Approval</b> field in Notion is empty), and whose dates haven't passed.</p><p>Old requests whose dates are over but were never decided are counted separately as <b>past, never decided</b>.</p>`,
+  forFinance: `<p>Approved requests that payroll hasn't handled yet: their <b>For Finance Processing</b> field in Notion is still <b>NEW</b>.</p><p>Open the Finance tab to see what to pay or deduct.</p>`,
+  whoOut: `<p>Everyone with approved leave today.</p><p><b>Back</b> is the first working day (Monday to Friday) after their leave ends.</p>`,
+  comingUp: `<p>Approved and pending leave that starts in the next 14 days, grouped by start date.</p><p>Requests marked <b>Awaiting approval</b> may still be rejected.</p>`,
+  daysYear: `<p>Approved leave days from 1 January to today, split by leave type.</p><p>Each request's days are spread across the weekdays it covers, so leave that runs into another month or year is counted in the right place. A half day counts as 0.5.</p>`,
+  byDept: `<p>Approved leave days so far this year for each department, and how many different people took them.</p>`,
+  perMonth: `<p>Approved leave days in each month, stacked by leave type.</p><p><b>Faded bars</b> are future months: leave that's approved but not taken yet.</p><p>Hover over a month for the exact numbers.</p>`,
+
+  apNow: `<p>The leave has <b>already started</b> and still has no decision. Approve or reject these first.</p>`,
+  apSoon: `<p>Starts within the next 7 days and has no decision yet.</p>`,
+  apLater: `<p>Starts more than 7 days from now.</p>`,
+  apPast: `<p>The leave dates are over, but the request was never approved or rejected in Notion.</p><p>Close these in Notion (approve, reject or cancel) so balances and payroll are right.</p>`,
+  apManager: `<p>Only show requests addressed to this manager (the <b>Manager</b> field on the request).</p>`,
+  balance: `<p>The balance for this leave type as recorded on the request, and what's left if it's approved.</p><p>A <b>red</b> bar means the request needs more days than the balance has. The extra days become <b>unpaid</b>.</p>`,
+  overlap: `<p>Colleagues in the same department with approved or pending leave on any of the same days. Use it to check the team will still be covered.</p>`,
+  filed: `<p>When the request was created in Notion.</p>`,
+
+  calCount: `<p>How many different people have <b>approved</b> leave that day. Pending requests aren't counted.</p><p>The busiest day in view is shown in orange.</p>`,
+  calBars: `<p><b>Solid bar</b>: approved leave.<br><b>Striped bar</b>: waiting for approval.<br><b>Thin bar</b>: less than a full day (for example a half day).</p><p>The colour is the leave type. Hover over a bar for details, or click it to open the request.</p>`,
+  calRange: `<p>Pick any start and end date. ‹ and › move the whole range by its length, and <b>Today</b> moves it to start this week.</p><p>Up to about 6 months at a time; scroll sideways for long ranges.</p>`,
+  calPending: `<p>Also show requests that haven't been approved yet, as striped bars.</p>`,
+
+  days: `<p>Total leave days asked for (<b>Number of Days</b> in Notion). ½ means a half day.</p><p>Always equals <b>Paid days</b> + <b>Unpaid days</b>.</p>`,
+  paid: `<p>Days covered by the person's leave balance, so they're <b>paid</b> as normal. They're taken off the balance.</p><p>In Notion this is <b>Days Reduced From Credit</b>.</p>`,
+  unpaid: `<p>Days the leave balance <b>didn't cover</b>, so they're <b>unpaid</b> and deducted from salary.</p><p>Worked out by Notion as Number of Days minus Days Reduced From Credit (<b>Unpaid Leaves Count</b>).</p>`,
+  status: `<p>The manager's decision:</p><p><b>◷ Awaiting approval</b>: no decision yet<br><b>✓ Approved</b><br><b>✕ Rejected</b><br><b>⊘ Cancelled</b>: withdrawn after filing</p>`,
+  finance: `<p>The <b>For Finance Processing</b> field in Notion: has payroll dealt with this request yet?</p><p><b>NEW</b>: not yet<br><b>PROCESSED</b>: done<br><b>—</b>: never set</p>`,
+  manager: `<p>The manager named on the request, who approves or rejects it.</p>`,
+  reqSort: `<p>Order of the list. <b>Filed</b> is when the request was created in Notion, so <b>Newest filed first</b> shows the latest applications at the top.</p><p>You can also click any column header to sort by it; click again to reverse.</p>`,
+  period: `<p>Shows requests whose <b>leave dates</b> fall in this period, not when they were filed.</p>`,
+  type: `<p>Leave type: <b>Vacation</b>, <b>Sick</b>, <b>Emergency</b> or <b>Maternity</b>. Each colour always means the same type across the app.</p>`,
+  lead: `<p>The team lead tagged on the request (<b>Lead</b> in Notion).</p>`,
+  balances: `<p>The leave balances (in days) written on this request when it was filed.</p><p>Notion doesn't keep a running balance anywhere else, so these numbers are a snapshot from that moment.</p>`,
+
+  pDays: `<p>Approved leave days in the selected year, split by type. Leave that runs into another year only counts the days in this one.</p>`,
+  pUnpaid: `<p>Days in this year that the leave balance didn't cover, so they were unpaid.</p>`,
+  pBalance: `<p>Leave days left, as written on this person's <b>most recent request</b>.</p><p>Notion doesn't track a live balance, so leave approved since that request may not be included yet.</p>`,
+  pBalanceLive: `<p>Leave days left, from this person's record in <b>Team Members</b> (Vacation / Sick / Emergency Leave Balance).</p><p>"Updated" is the <b>Last Balance Update</b> date there, when it's filled in.</p>`,
+  pPending: `<p>Requests from this person that are still waiting for a decision.</p>`,
+  pNext: `<p>Their current leave, or the next leave that's approved or waiting for approval.</p>`,
+
+  finToProcess: `<p>Requests that are <b>approved</b> and still marked <b>NEW</b> for finance: payroll has to handle them.</p><p>Once they're handled, set <b>For Finance Processing</b> to <b>PROCESSED</b> in Notion and their stage changes to <b>Processed</b>.</p><p>Click to list only these.</p>`,
+  finPaid: `<p>Total days in the "to process" list that come out of people's <b>leave balances</b>. Pay stays the same for these days.</p>`,
+  finUnpaid: `<p>Unpaid days in requests that are <b>to process</b>: days the leave balance didn't cover. Deduct these from salary.</p><p>Click to list only those requests.</p>`,
+  finFix: `<p>Requests where the Notion fields contradict each other, so payroll could get them wrong.</p><p>Click to list them. Each row's <b>Stage</b> says what to change.</p>`,
+  finMonth: `<p>Only show requests whose leave <b>starts</b> in this month. Useful when you run payroll month by month.</p>`,
+  finStale: `<p>The leave was <b>rejected or cancelled</b>, so there's nothing to pay or deduct, but finance is still marked <b>NEW</b>.</p><p><b>Fix:</b> set For Finance Processing to <b>PROCESSED</b> in Notion.</p>`,
+  finUnflagged: `<p>The leave is <b>approved</b> but <b>For Finance Processing</b> is empty, so it never shows up for payroll.</p><p><b>Fix:</b> set it to <b>NEW</b> if payroll still has to handle it, or <b>PROCESSED</b> if it's already done.</p>`,
+  finBadNumbers: `<p>Approved and waiting for payroll, but the day counts look wrong: Paid days below zero, or Number of Days missing or not a number.</p><p><b>Fix:</b> correct Number of Days or Days Reduced From Credit in Notion before processing.</p>`,
+  finWaiting: `<p>The manager <b>hasn't decided yet</b>. Don't process these. They move to <b>To process</b> once they're approved.</p>`,
+  finStage: `<p>Where each request stands for payroll. Every request is in exactly one stage:</p><p><b>→ To process</b>: approved, finance NEW; payroll still has to handle it<br><b>◷ Waiting for manager</b>: no decision yet, don't process<br><b>✓ Processed</b>: payroll already handled it<br><b>– Nothing to do</b>: rejected or cancelled, already closed<br><b>⚠ Fix</b>: the Notion fields contradict each other; hover over the stage for what to change</p>`,
+  finView: `<p><b>By request</b>: one row per leave application, newest filed first. Click a column to sort.</p><p><b>By person</b>: each person with their totals, and their applications underneath. People with the newest application come first.</p><p>The highlights, filters and search apply to both.</p>`,
+  finNone: `<p>The leave was <b>rejected or cancelled</b> and isn't marked NEW, so there's nothing for payroll to do.</p>`,
+  finProcessed: `<p>Requests payroll has already handled (<b>PROCESSED</b>). Kept for reference.</p>`,
+};
+const stripTags = (h) => h.replace(/<br>/g, ' ').replace(/<[^>]+>/g, '');
+/** A small ⓘ icon that shows the glossary entry on hover, tap or keyboard focus. */
+const INFO_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="4.8" r="1" fill="currentColor"/><path d="M8 7.3v4.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+const info = (key) => `<span class="info" tabindex="0" role="note" aria-label="${esc(stripTags(G[key]))}" data-tip="${esc(`<div class="tx">${G[key]}</div>`)}">${INFO_SVG}</span>`;
+const tipLeave = (l) => esc(`<div class="t">${esc(l.name)}</div><div>${esc(typeShort(l.type))} · ${esc(daysLabel(l.days))}</div><div class="muted">${esc(fmtRange(l))}</div><div style="margin-top:4px">${STATUS[l.approval].icon} ${STATUS[l.approval].label}</div>`);
+
+// ---------------------------------------------------------------- header
+function renderDeptFilters() {
+  const counts = {};
+  const t = today();
+  for (const l of state.leaves) if (l.approval === 'Pending' || overlaps(l, addDays(t, -60), addDays(t, 365))) counts[l.deptGroup] = (counts[l.deptGroup] || 0) + 1;
+  const present = DEPTS.filter((d) => state.leaves.some((l) => l.deptGroup === d));
+  $('#deptFilters').innerHTML = `<span class="label">Department${info('dept')}</span>` +
+    ['All', ...present].map((d) => `<button class="chip ${state.dept === d ? 'on' : ''}" data-dept="${esc(d)}">${esc(d)}</button>`).join('');
+}
+$('#deptFilters').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-dept]'); if (!b) return;
+  state.dept = b.dataset.dept; save('dept', state.dept); renderAll();
+});
+
+function setTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === 'v-' + tab));
+  if (location.hash !== '#' + tab) history.replaceState(null, '', '#' + tab);
+  renderTab();
+}
+$('#tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) setTab(b.dataset.tab); });
+addEventListener('hashchange', () => { const t = location.hash.slice(1); if (t && t !== state.tab && $('#v-' + t)) setTab(t); });
+
+function renderBadges() {
+  const t = today();
+  const pend = scoped().filter((l) => l.approval === 'Pending' && !(l.start && (l.end || l.start) < t)).length;
+  const fin = scoped().filter((l) => stageOf(l) === 'process').length;
+  const set = (id, n) => { const el = $(id); el.hidden = !n; el.textContent = n; };
+  set('#b-approvals', pend); set('#b-finance', fin);
+}
+
+// ---------------------------------------------------------------- overview
+function renderOverview() {
+  const el = $('#v-overview');
+  const t = today();
+  const all = scoped();
+  const appr = approved(all);
+  const outToday = appr.filter((l) => overlaps(l, t, t));
+  const pendingToday = all.filter((l) => l.approval === 'Pending' && overlaps(l, t, t));
+  const wkA = mondayOf(t), wkB = addDays(wkA, 6);
+  const outWeek = new Set(appr.filter((l) => overlaps(l, wkA, wkB)).map(personKey));
+  const pending = all.filter((l) => l.approval === 'Pending');
+  const pendingSoon = pending.filter((l) => l.start && l.start > t && l.start <= addDays(t, 7));
+  const pendingStarted = pending.filter((l) => l.start && l.start <= t && (l.end || l.start) >= t);
+  const pendingPast = pending.filter((l) => l.start && (l.end || l.start) < t);
+  const finQ = appr.filter((l) => stageOf(l) === 'process');
+  const upA = addDays(t, 1), upB = addDays(t, 14);
+  const upcoming = all.filter((l) => (l.approval === 'Approved' || l.approval === 'Pending') && overlaps(l, upA, upB) && !(l.start <= t))
+    .sort((a, b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name));
+  const weekend = isWeekend(t);
+
+  const tile = (tab, icon, k, v, s, alert, help) => `<button class="card tile ${alert ? 'alert' : ''}" data-go="${tab}"><span class="k"><span class="icon">${icon}</span>${k}${info(help)}</span><span class="v">${v}</span><span class="s">${s}</span></button>`;
+  const typeMix = (list) => TYPES.map((ty) => [ty, list.filter((l) => l.type === ty).length]).filter(([, n]) => n).map(([ty, n]) => `${n} ${typeShort(ty).toLowerCase()}`).join(' · ');
+
+  const outRow = (l) => {
+    const back = l.end ? nextWorkday(l.end) : null;
+    const half = l.days != null && l.days < 1;
+    return `<div class="prow" data-leave="${l.id}">${avatar(l)}<div class="pmain"><div class="pname">${esc(l.name)}</div><div class="pmeta">${esc(l.dept || l.deptGroup)}</div></div>
+      <div class="pend">${typePill(l.type)}<span>${half ? esc(daysLabel(l.days)) + ' today' : back ? 'Back ' + esc(fmtDate(back)) : ''}</span></div></div>`;
+  };
+
+  // Upcoming grouped by start day
+  const byDay = new Map();
+  for (const l of upcoming) { if (!byDay.has(l.start)) byDay.set(l.start, []); byDay.get(l.start).push(l); }
+  const upHtml = [...byDay].map(([d, ls]) => `<div class="yr" style="margin-top:12px">${esc(fmtDate(d))} <span class="faint" style="font-weight:500;letter-spacing:0">· ${relDay(d)}</span></div>` +
+    ls.map((l) => `<div class="prow" data-leave="${l.id}">${avatar(l, 'sm')}<div class="pmain"><div class="pname">${esc(l.name)}</div><div class="pmeta">${esc(l.dept || l.deptGroup)} · ${esc(daysLabel(l.days))}${l.end && l.end !== l.start ? ', until ' + esc(fmtDate(l.end)) : ''}</div></div>
+      <div class="pend">${typePill(l.type)}${l.approval === 'Pending' ? statusPill('Pending') : ''}</div></div>`).join('')).join('');
+
+  const year = new Date().getFullYear();
+  const yA = `${year}-01-01`, yB = `${year}-12-31`;
+  const ytdB = t;
+  const byType = TYPES.map((ty) => [ty, sum(appr.filter((l) => l.type === ty), (l) => daysInRange(l, yA, ytdB))]);
+  const typeTotal = sum(byType, (x) => x[1]) || 1;
+  const byDept = DEPTS.map((d) => {
+    const ls = appr.filter((l) => l.deptGroup === d);
+    return [d, sum(ls, (l) => daysInRange(l, yA, ytdB)), new Set(ls.filter((l) => overlaps(l, yA, ytdB)).map(personKey)).size];
+  }).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]);
+  const deptMax = Math.max(1, ...byDept.map((x) => x[1]));
+
+  el.innerHTML = `
+    <div class="grid g4">
+      ${tile('calendar', '🏝', weekend ? 'Out today · weekend' : 'Out today', outToday.length ? new Set(outToday.map(personKey)).size : 0, outToday.length ? typeMix(outToday) : 'Everyone is in', false, 'outToday')}
+      ${tile('calendar', '🗓', 'Out this week', outWeek.size, `${fmtDate(wkA, { wd: false })} – ${fmtDate(wkB, { wd: false })}`, false, 'outWeek')}
+      ${tile('approvals', '◷', 'Awaiting approval', pending.length - pendingPast.length, [pendingStarted.length && `<b style="color:var(--warn)">${pendingStarted.length} happening now</b>`, `${pendingSoon.length} start within 7 days`, pendingPast.length && `${pendingPast.length} past, never decided`].filter(Boolean).join(' · '), pendingStarted.length > 0, 'awaiting')}
+      ${tile('finance', '₿', 'Waiting for payroll', finQ.length, `approved, not processed yet · ${fmtNum(sum(finQ, (l) => l.unpaid))} unpaid days`, false, 'forFinance')}
+    </div>
+
+    <div class="grid g-main" style="margin-top:16px">
+      <div class="stack">
+        <div class="card"><div class="card-h"><h3>Who's out today${info('whoOut')}</h3><span class="sub">${esc(fmtDate(t))}</span></div>
+          <div class="card-b"><div class="plist">${outToday.length ? outToday.sort((a, b) => a.name.localeCompare(b.name)).map(outRow).join('') : '<div class="empty">No approved leave today</div>'}</div>
+          ${pendingToday.length ? `<div class="yr">NOT YET APPROVED</div><div class="plist">${pendingToday.map(outRow).join('')}</div>` : ''}</div></div>
+        <div class="card"><div class="card-h"><h3>Days off this year${info('daysYear')}</h3><span class="sub">approved, ${year} to date</span></div>
+          <div class="card-b">
+            <div class="stackbar" style="height:12px;margin:6px 0 10px">${byType.filter((x) => x[1]).map(([ty, n]) => `<i style="--c:${typeColor(ty)};width:${(n / typeTotal) * 100}%" data-tip="${esc(`<b>${typeShort(ty)}</b>: ${fmtNum(Math.round(n * 10) / 10)} days`)}"></i>`).join('')}</div>
+            <div class="legend" style="margin-bottom:14px">${byType.map(([ty, n]) => `<span><i style="--c:${typeColor(ty)}"></i>${typeShort(ty)} <b style="color:var(--text)" class="num">${fmtNum(Math.round(n * 10) / 10)}</b> <span class="faint num">${Math.round((n / typeTotal) * 100)}%</span></span>`).join('')}</div>
+            <div class="yr" style="margin-top:4px">BY DEPARTMENT${info('byDept')}</div>
+            ${byDept.map(([d, n, ppl]) => `<div class="hbar"><span>${esc(d)}</span><div class="track"><div class="fill" style="width:${(n / deptMax) * 100}%"></div></div><span class="val"><b>${fmtNum(Math.round(n))}</b> days · ${ppl} ppl</span></div>`).join('') || '<div class="empty">No leave yet</div>'}
+          </div></div>
+      </div>
+      <div class="card"><div class="card-h"><h3>Coming up${info('comingUp')}</h3><span class="sub">next 14 days · ${upcoming.length} request${upcoming.length === 1 ? '' : 's'}</span></div>
+        <div class="card-b">${upHtml || '<div class="empty">Nobody has leave in the next two weeks</div>'}</div></div>
+    </div>
+
+    <div class="card" style="margin-top:16px"><div class="card-h"><h3>Days off per month${info('perMonth')}</h3><span class="sub">approved leave · last 12 months and booked ahead</span><div class="spacer"></div>
+      <div class="legend">${TYPES.map((ty) => `<span><i style="--c:${typeColor(ty)}"></i>${typeShort(ty)}</span>`).join('')}</div></div>
+      <div class="card-b"><div class="chart" id="monthChart"></div></div></div>`;
+  drawMonthChart(appr);
+}
+function nextWorkday(iso) { let d = addDays(iso, 1); while (isWeekend(d)) d = addDays(d, 1); return d; }
+
+function drawMonthChart(appr) {
+  const host = $('#monthChart'); if (!host) return;
+  const now = new Date();
+  const months = [];
+  for (let i = -11; i <= 3; i++) { const d = new Date(now.getFullYear(), now.getMonth() + i, 1); months.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}`); }
+  const idx = new Map(months.map((m, i) => [m, i]));
+  const data = months.map(() => Object.fromEntries(TYPES.map((t) => [t, 0])));
+  for (const l of appr) for (const [d, w] of spread(l)) { const i = idx.get(d.slice(0, 7)); if (i != null && data[i][l.type] != null) data[i][l.type] += w; }
+  const totals = data.map((r) => sum(TYPES, (t) => r[t]));
+  const max = Math.max(5, ...totals);
+  const step = niceStep(max / 4);
+  const top = Math.ceil(max / step) * step;
+  const W = Math.max(host.clientWidth, 320), H = 240, L = 34, R = 4, T = 10, B = 26;
+  const pw = W - L - R, ph = H - T - B, band = pw / months.length, bw = Math.min(38, band * 0.62);
+  const y = (v) => T + ph - (v / top) * ph;
+  const cur = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+  let svg = '';
+  for (let v = 0; v <= top + 1e-9; v += step) svg += `<line class="gridline" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 8}" y="${y(v) + 3.5}" text-anchor="end">${fmtNum(v)}</text>`;
+  months.forEach((m, i) => {
+    const x = L + i * band + (band - bw) / 2;
+    let acc = 0;
+    const segs = TYPES.filter((t) => data[i][t] > 0);
+    const future = m > cur;
+    segs.forEach((t, si) => {
+      const v = data[i][t]; const y0 = y(acc), y1 = y(acc + v); acc += v;
+      const h = Math.max(0, y0 - y1 - (si < segs.length - 1 ? 2 : 0));
+      // The 2px gap between stacked segments is carved from the top of the lower one; only the top segment gets rounded corners.
+      const yTop = y0 - h;
+      const r = si === segs.length - 1 ? Math.min(4, h) : 0;
+      svg += `<path d="M${x},${y0}V${yTop + r}${r ? `Q${x},${yTop} ${x + r},${yTop}` : ''}H${x + bw - r}${r ? `Q${x + bw},${yTop} ${x + bw},${yTop + r}` : ''}V${y0}Z" fill="${typeColor(t)}" opacity="${future ? 0.55 : 1}"/>`;
+    });
+    const [yy, mm] = m.split('-');
+    const lab = MON[+mm - 1] + (mm === '01' || i === 0 ? ` ’${yy.slice(2)}` : '');
+    svg += `<text class="axis ${m === cur ? 'now' : ''}" x="${L + i * band + band / 2}" y="${H - 8}" text-anchor="middle">${lab}</text>`;
+    if (totals[i] > 0 && band > 34) svg += `<text class="axis" x="${L + i * band + band / 2}" y="${y(totals[i]) - 5}" text-anchor="middle" style="fill:var(--muted)">${Math.round(totals[i])}</text>`;
+    svg += `<rect x="${L + i * band}" y="${T}" width="${band}" height="${ph}" fill="transparent" data-m="${i}"/>`;
+  });
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Days of approved leave per month by type">${svg}</svg>`;
+  host.onmousemove = (ev) => {
+    const i = ev.target.dataset?.m; if (i == null) { hideTip(); return; }
+    const m = months[i]; const [yy, mm] = m.split('-');
+    showTip(`<div class="t">${MON[+mm - 1]} ${yy}${m > cur ? ' · booked' : m === cur ? ' · so far + booked' : ''}</div>` +
+      TYPES.map((t) => `<div class="r"><span><i style="--c:${typeColor(t)}"></i>${typeShort(t)}</span><b class="num">${fmtNum(Math.round(data[i][t] * 10) / 10)}</b></div>`).join('') +
+      `<div class="r" style="margin-top:4px;border-top:1px solid var(--border);padding-top:4px"><span>Total days</span><b class="num">${fmtNum(Math.round(totals[i] * 10) / 10)}</b></div>`, ev);
+  };
+  host.onmouseleave = hideTip;
+}
+function niceStep(raw) { const p = 10 ** Math.floor(Math.log10(raw)); const f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+
+// ---------------------------------------------------------------- approvals
+function renderApprovals() {
+  const el = $('#v-approvals');
+  const t = today();
+  const all = scoped();
+  const pendingAll = all.filter((l) => l.approval === 'Pending');
+  const managers = [...new Set(pendingAll.map((l) => l.manager).filter(Boolean))].sort();
+  if (state.approvalsManager && !managers.includes(state.approvalsManager)) state.approvalsManager = '';
+  const pending = pendingAll.filter((l) => !state.approvalsManager || l.manager === state.approvalsManager)
+    .sort((a, b) => (a.start || '9').localeCompare(b.start || '9') || a.name.localeCompare(b.name));
+
+  const groups = [
+    ['Happening now', 'leave has started and still has no decision', pending.filter((l) => l.start && l.start <= t && (l.end || l.start) >= t), 'var(--bad)', 'apNow'],
+    ['Starting within 7 days', 'decide soon', pending.filter((l) => l.start > t && l.start <= addDays(t, 7)), 'var(--warn)', 'apSoon'],
+    ['Later', '', pending.filter((l) => !l.start || l.start > addDays(t, 7)), 'transparent', 'apLater'],
+    ['Past, never decided', 'the leave is over but was never approved or rejected', pending.filter((l) => l.start && (l.end || l.start) < t).reverse(), 'var(--off)', 'apPast'],
+  ];
+
+  const card = (l, c) => {
+    // One entry per colleague (approved wins over pending when they have both)
+    const seen = new Map();
+    for (const o of all) {
+      if (personKey(o) === personKey(l) || o.deptGroup !== l.deptGroup || !(o.approval === 'Approved' || o.approval === 'Pending') || !l.start || !overlaps(o, l.start, l.end || l.start)) continue;
+      const prev = seen.get(personKey(o));
+      if (!prev || (prev.approval === 'Pending' && o.approval === 'Approved')) seen.set(personKey(o), o);
+    }
+    const others = [...seen.values()];
+    const warns = [];
+    const bk = BAL_KEY[l.type];
+    const bal = bk ? l.balance[bk] : null;
+    let balHtml = '';
+    if (bal != null && l.days != null) {
+      const after = bal - l.days;
+      const pct = bal > 0 ? Math.max(0, Math.min(100, (Math.min(l.days, bal) / bal) * 100)) : 100;
+      balHtml = `<span class="bal">${typeShort(l.type)} balance <b>${fmtNum(bal)}</b> <span class="meter"><i style="--c:${after < 0 ? 'var(--bad)' : typeColor(l.type)};width:${pct}%"></i></span> <b>${fmtNum(Math.max(after, 0))}</b> left after${info('balance')}</span>`;
+      if (after < 0) warns.push(`Asks for ${fmtNum(-after)} more day${-after === 1 ? '' : 's'} than the ${typeShort(l.type).toLowerCase()} balance${l.unpaid ? ` (${fmtNum(l.unpaid)} counted as unpaid)` : ''}`);
+    }
+    if (l.unpaid && !warns.length) warns.push(`${plural(l.unpaid, 'day')} unpaid`);
+    if (others.length) warns.push(`${info('overlap')} Overlaps with ${others.length} other${others.length === 1 ? '' : 's'} in ${esc(l.deptGroup)}: ` +
+      others.slice(0, 5).map((o) => `<a href="#" data-leave="${o.id}">${esc(o.name)}</a>${o.approval === 'Pending' ? ' (pending)' : ''}`).join(', ') + (others.length > 5 ? ` +${others.length - 5}` : ''));
+    if (!l.start) warns.push('No leave dates filled in');
+    return `<div class="req" style="--c:${c}">
+      ${avatar(l)}
+      <div style="min-width:0">
+        <div class="line1"><span class="name" data-person="${esc(personKey(l))}">${esc(l.name)}</span>${typePill(l.type)}<span class="tag">${esc(l.dept || l.deptGroup)}</span></div>
+        <div class="when">${esc(fmtRange(l))}<span class="d">${esc(daysLabel(l.days))}${l.start ? ' · starts ' + relDay(l.start) : ''}</span></div>
+        <div class="facts">
+          <span>Manager <b>${esc(l.manager || '—')}</b>${info('manager')}</span>
+          ${l.leads.length ? `<span>Lead <b>${esc(l.leads.join(', '))}</b></span>` : ''}
+          <span>Filed ${esc(ago(l.createdAt))}${info('filed')}</span>
+          ${balHtml}
+        </div>
+        ${l.note ? `<div class="note">${esc(l.note)}</div>` : ''}
+        ${warns.length ? `<div class="warns">${warns.map((w) => `<div><span class="w">!</span><span>${w}</span></div>`).join('')}</div>` : ''}
+      </div>
+      <div class="actions">
+        <a class="btn primary" href="${esc(l.url)}" target="_blank" rel="noopener">Review in Notion ↗</a>
+        <button class="btn" data-leave="${l.id}">Details</button>
+      </div></div>`;
+  };
+
+  el.innerHTML = `
+    <div class="toolbar">
+      <div><h2 style="margin:0;font-size:18px;font-weight:600">Awaiting approval</h2>
+      <div class="muted" style="font-size:12.5px">Requests with no decision yet. Approve or reject in Notion; this page updates within a minute.</div></div>
+      <div class="spacer"></div>
+      ${info('apManager')}<select class="sel" id="apMgr"><option value="">All managers (${pendingAll.length})</option>${managers.map((m) => `<option ${m === state.approvalsManager ? 'selected' : ''} value="${esc(m)}">${esc(m)} (${pendingAll.filter((l) => l.manager === m).length})</option>`).join('')}</select>
+    </div>
+    ${pending.length ? groups.filter((g) => g[2].length).map(([title, sub, ls, c, help]) => `
+      <div class="card" style="margin-bottom:16px;overflow:hidden">
+        <div class="group-h"><h3>${title}${info(help)}</h3><span class="n">${ls.length}${sub ? ' · ' + sub : ''}</span></div>
+        ${ls.map((l) => card(l, c)).join('')}
+      </div>`).join('') : '<div class="card"><div class="empty" style="padding:60px 0">✓ Nothing waiting for approval</div></div>'}`;
+  $('#apMgr').onchange = (e) => { state.approvalsManager = e.target.value; save('approvalsManager', state.approvalsManager); renderApprovals(); };
+}
+
+// ---------------------------------------------------------------- calendar
+function renderCalendar() {
+  const el = $('#v-calendar');
+  const c = state.cal;
+  const t = today();
+  // Either N weeks from this week's Monday (shifted by `offset`), or a custom from–to range
+  const a = c.custom ? c.custom.from : addDays(mondayOf(t), c.offset * 7);
+  const b = c.custom ? c.custom.to : addDays(a, c.weeks * 7 - 1);
+  const n = diffDays(a, b) + 1;
+  let days = []; for (let i = 0; i < n; i++) days.push(addDays(a, i));
+  if (!c.weekends) days = days.filter((d) => !isWeekend(d));
+  const col = new Map(days.map((d, i) => [d, i]));
+
+  const list = scoped().filter((l) => (l.approval === 'Approved' || (c.pending && l.approval === 'Pending')) && overlaps(l, a, b));
+  const people = new Map();
+  for (const l of list) {
+    const k = personKey(l);
+    if (!people.has(k)) people.set(k, { key: k, sample: l, leaves: [] });
+    people.get(k).leaves.push(l);
+  }
+  const groups = DEPTS.map((d) => [d, [...people.values()].filter((p) => p.sample.deptGroup === d)
+    .sort((x, y) => Math.min(...x.leaves.map((l) => toMs(l.start))) - Math.min(...y.leaves.map((l) => toMs(l.start))) || x.sample.name.localeCompare(y.sample.name))]).filter((g) => g[1].length);
+
+  const offCount = days.map((d) => new Set(list.filter((l) => l.approval === 'Approved' && spread(l).some(([x]) => x === d)).map(personKey)).size);
+  const maxOff = Math.max(...offCount, 0);
+
+  const cells = (extra = '') => days.map((d, i) => `<div class="cell ${isWeekend(d) ? 'we' : ''} ${d === t ? 'today' : ''}" style="grid-column:${i + 2}">${extra}</div>`).join('');
+  const bars = (p) => p.leaves.map((l) => {
+    // Clip to the visible window; with weekends hidden, snap to the nearest shown day.
+    let s = l.start < a ? a : l.start, e = (l.end || l.start) > b ? b : (l.end || l.start);
+    while (!col.has(s) && s <= e) s = addDays(s, 1);
+    while (!col.has(e) && e >= s) e = addDays(e, -1);
+    if (s > e) return '';
+    const i0 = col.get(s), i1 = col.get(e);
+    const half = l.days != null && l.days < 1;
+    const span = i1 - i0 + 1;
+    const label = span >= 3 ? `${typeShort(l.type)} · ${daysLabel(l.days)}` : span === 2 ? typeShort(l.type) : '';
+    return `<div class="bar ${l.approval === 'Pending' ? 'pending' : ''} ${half ? 'half' : ''} ${l.start < a ? 'cut-l' : ''} ${(l.end || l.start) > b ? 'cut-r' : ''}" style="--c:${typeColor(l.type)};grid-column:${i0 + 2} / ${i1 + 3}" data-leave="${l.id}" data-tip="${tipLeave(l)}">${esc(label)}</div>`;
+  }).join('');
+
+  const monthLabel = (() => {
+    const s = new Date(toMs(a)), e = new Date(toMs(b));
+    return s.getUTCMonth() === e.getUTCMonth() ? `${MON[s.getUTCMonth()]} ${s.getUTCFullYear()}` : `${MON[s.getUTCMonth()]}${s.getUTCFullYear() !== e.getUTCFullYear() ? ' ' + s.getUTCFullYear() : ''} – ${MON[e.getUTCMonth()]} ${e.getUTCFullYear()}`;
+  })();
+
+  el.innerHTML = `
+    <div class="cal-controls">
+      <button class="btn" data-cal="prev" aria-label="Earlier">‹</button><button class="btn" data-cal="today">Today</button><button class="btn" data-cal="next" aria-label="Later">›</button>
+      <h2>${monthLabel}</h2>
+      <div class="seg">${[2, 4, 6].map((w) => `<button class="${!c.custom && c.weeks === w ? 'on' : ''}" data-weeks="${w}">${w} weeks</button>`).join('')}<button class="${c.custom ? 'on' : ''}" data-weeks="custom">Custom</button></div>
+      ${c.custom ? `<label class="check">From <input type="date" class="sel" id="calFrom" value="${a}"></label><label class="check">To <input type="date" class="sel" id="calTo" value="${b}"></label>${info('calRange')}` : ''}
+      <label class="check"><input type="checkbox" id="calPend" ${c.pending ? 'checked' : ''}> Show pending</label>${info('calPending')}
+      <label class="check"><input type="checkbox" id="calWe" ${c.weekends ? 'checked' : ''}> Weekends</label>
+      <div class="spacer"></div>
+      <div class="legend">${TYPES.map((ty) => `<span><i style="--c:${typeColor(ty)}"></i>${typeShort(ty)}</span>`).join('')}<span><i class="hatch"></i>Pending</span><span><i style="--c:var(--faint);height:5px"></i>Half day</span>${info('calBars')}</div>
+    </div>
+    <div class="card cal"><div class="cal-grid" style="--n:${days.length};min-width:${230 + days.length * 30}px">
+      <div class="cal-row cal-head"><div class="who">${people.size} ${people.size === 1 ? 'person' : 'people'} off</div>
+        ${days.map((d, i) => { const dt = new Date(toMs(d)); return `<div class="day ${isWeekend(d) ? 'we' : ''} ${d === t ? 'today' : ''} ${dt.getUTCDate() === 1 && i ? 'm1' : ''}" style="grid-column:${i + 2}">${WD[dt.getUTCDay()].slice(0, 2)}<b>${dt.getUTCDate()}</b></div>`; }).join('')}</div>
+      <div class="cal-row cal-count"><div class="who">Approved off${info('calCount')}</div>${days.map((d, i) => `<div class="cell ${isWeekend(d) ? 'we' : ''} ${d === t ? 'today' : ''} ${offCount[i] && offCount[i] === maxOff && maxOff > 1 ? 'hi' : ''}" style="grid-column:${i + 2}">${offCount[i] || ''}</div>`).join('')}</div>
+      ${groups.length ? groups.map(([g, ps]) => `<div class="cal-group">${esc(g)} · ${ps.length}</div>` + ps.map((p) => `
+        <div class="cal-row"><div class="who" data-person="${esc(p.key)}">${avatar(p.sample, 'sm')}<div class="pmain"><div class="pname">${esc(p.sample.name)}</div><div class="pmeta">${esc(p.sample.dept || p.sample.deptGroup)}</div></div></div>${cells()}${bars(p)}</div>`).join('')).join('')
+      : `<div class="empty" style="padding:50px 0">No leave in this period${state.dept !== 'All' ? ' for ' + esc(state.dept) : ''}</div>`}
+    </div></div>`;
+
+  el.querySelectorAll('[data-cal]').forEach((btn) => btn.onclick = () => {
+    const k = btn.dataset.cal;
+    if (c.custom) {
+      // Custom range: arrows move by the range's own length; Today keeps the length and starts this week
+      const shift = k === 'today' ? diffDays(a, mondayOf(t)) : (k === 'next' ? 1 : -1) * n;
+      c.custom = { from: addDays(a, shift), to: addDays(b, shift) };
+    } else c.offset = k === 'today' ? 0 : c.offset + (k === 'next' ? 1 : -1) * Math.max(1, c.weeks / 2);
+    renderCalendar();
+  });
+  el.querySelectorAll('[data-weeks]').forEach((btn) => btn.onclick = () => {
+    if (btn.dataset.weeks === 'custom') { c.custom ??= { from: a, to: b }; } else { c.custom = null; c.weeks = +btn.dataset.weeks; save('calWeeks', c.weeks); }
+    renderCalendar();
+  });
+  const setRange = () => {
+    let from = $('#calFrom').value, to = $('#calTo').value;
+    if (!from || !to) return;
+    if (to < from) [from, to] = [to, from];
+    if (diffDays(from, to) > CAL_MAX_DAYS - 1) to = addDays(from, CAL_MAX_DAYS - 1);
+    c.custom = { from, to }; renderCalendar();
+  };
+  if (c.custom) { $('#calFrom').onchange = setRange; $('#calTo').onchange = setRange; }
+  $('#calPend').onchange = (e) => { c.pending = e.target.checked; save('calPending', c.pending); renderCalendar(); };
+  $('#calWe').onchange = (e) => { c.weekends = e.target.checked; save('calWeekends', c.weekends); renderCalendar(); };
+}
+
+// ---------------------------------------------------------------- requests table
+const PERIODS = {
+  all: ['All time', () => true],
+  upcoming: ['Upcoming', (l, t) => (l.end || l.start) >= t],
+  month: ['This month', (l, t) => overlaps(l, t.slice(0, 8) + '01', t.slice(0, 8) + '31')],
+  d30: ['Last 30 days', (l, t) => overlaps(l, addDays(t, -30), t)],
+  year: ['This year', (l, t) => overlaps(l, t.slice(0, 4) + '-01-01', t.slice(0, 4) + '-12-31')],
+  lastyear: ['Last year', (l, t) => { const y = +t.slice(0, 4) - 1; return overlaps(l, `${y}-01-01`, `${y}-12-31`); }],
+};
+const COLS = [
+  ['name', 'Person', (l) => l.name.toLowerCase()],
+  ['type', 'Type', (l) => l.type, '', 'type'],
+  ['start', 'Dates', (l) => l.start || ''],
+  ['days', 'Days', (l) => l.days ?? -1, 'r', 'days'],
+  ['deducted', 'Paid days', (l) => l.deducted ?? -1, 'r', 'paid'],
+  ['unpaid', 'Unpaid days', (l) => l.unpaid ?? -1, 'r', 'unpaid'],
+  ['approval', 'Status', (l) => l.approval, '', 'status'],
+  ['finance', 'Finance', (l) => l.finance || '', '', 'finance'],
+  ['manager', 'Manager', (l) => l.manager.toLowerCase(), '', 'manager'],
+  ['createdAt', 'Filed', (l) => l.createdAt, '', 'filed'],
+];
+
+function filteredRequests() {
+  const r = state.req, t = today();
+  const q = r.q.trim().toLowerCase();
+  return scoped().filter((l) =>
+    (!r.status.length || r.status.includes(l.approval)) &&
+    (!r.type || l.type === r.type) &&
+    (!r.finance || (r.finance === 'none' ? !l.finance : l.finance === r.finance)) &&
+    (!r.manager || l.manager === r.manager) &&
+    PERIODS[r.period][1](l, t) &&
+    (!q || `${l.name} ${l.email || ''} ${l.note} ${l.manager} ${l.dept} ${l.type}`.toLowerCase().includes(q)));
+}
+
+function renderRequests() {
+  const el = $('#v-requests');
+  const r = state.req;
+  const managers = [...new Set(scoped().map((l) => l.manager).filter(Boolean))].sort();
+  el.innerHTML = `
+    <div class="toolbar">
+      <input class="search" id="rq" placeholder="Search name, email, note…" value="${esc(r.q)}">
+      ${['Pending', 'Approved', 'Rejected', 'Cancelled'].map((s) => `<button class="chip ${r.status.includes(s) ? 'on' : ''}" data-status="${s}">${STATUS[s].icon} ${s === 'Pending' ? 'Pending' : s}</button>`).join('')}
+    </div>
+    <div class="toolbar">
+      ${info('period')}<select class="sel" id="rPeriod">${Object.entries(PERIODS).map(([k, [lab]]) => `<option value="${k}" ${r.period === k ? 'selected' : ''}>${lab}</option>`).join('')}</select>
+      <select class="sel" id="rType"><option value="">All leave types</option>${TYPES.map((t) => `<option ${r.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <select class="sel" id="rFin"><option value="">Any finance state</option><option value="NEW" ${r.finance === 'NEW' ? 'selected' : ''}>Finance: NEW</option><option value="PROCESSED" ${r.finance === 'PROCESSED' ? 'selected' : ''}>Finance: PROCESSED</option><option value="none" ${r.finance === 'none' ? 'selected' : ''}>Finance: not set</option></select>
+      <select class="sel" id="rMgr"><option value="">All managers</option>${managers.map((m) => `<option ${r.manager === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select>
+      <select class="sel" id="rSort">${sortOptions(r)}</select>${info('reqSort')}
+      <select class="sel" id="rGroup">${[['none', 'No grouping'], ['approval', 'Group by status'], ['person', 'Group by person'], ['month', 'Group by month'], ['type', 'Group by type']].map(([k, lab]) => `<option value="${k}" ${r.group === k ? 'selected' : ''}>${lab}</option>`).join('')}</select>
+      <button class="btn" id="rClear">Clear filters</button>
+      <button class="btn" id="rCsv">⇩ CSV</button>
+      <span class="summary" id="rSum"></span>
+    </div>
+    <div class="card tbl-wrap" id="rTable"></div>`;
+  const rerender = () => drawRequestsTable();
+  $('#rq').oninput = (e) => { r.q = e.target.value; r.limit = 100; rerender(); };
+  el.querySelectorAll('[data-status]').forEach((b) => b.onclick = () => {
+    const s = b.dataset.status; r.status = r.status.includes(s) ? r.status.filter((x) => x !== s) : [...r.status, s];
+    save('reqStatus', r.status); b.classList.toggle('on'); r.limit = 100; rerender();
+  });
+  const bind = (id, key, persist) => { $(id).onchange = (e) => { r[key] = e.target.value; r.limit = 100; if (persist) save(persist, r[key]); rerender(); }; };
+  bind('#rPeriod', 'period'); bind('#rType', 'type'); bind('#rFin', 'finance'); bind('#rMgr', 'manager'); bind('#rGroup', 'group', 'reqGroup');
+  $('#rSort').onchange = (e) => { const [k, d] = e.target.value.split(':'); r.sort = k; r.dir = +d; r.limit = 100; save('reqSort', [r.sort, r.dir]); rerender(); };
+  $('#rClear').onclick = () => { Object.assign(r, { q: '', status: [], type: '', finance: '', manager: '', period: 'all', limit: 100 }); save('reqStatus', []); renderRequests(); };
+  $('#rCsv').onclick = () => downloadCsv(sortRequests(filteredRequests()), 'leave-requests');
+  rerender();
+}
+const REQ_SORTS = [
+  ['createdAt:-1', 'Newest filed first'],
+  ['createdAt:1', 'Oldest filed first'],
+  ['start:-1', 'Leave date: latest first'],
+  ['start:1', 'Leave date: earliest first'],
+  ['days:-1', 'Most days'],
+  ['unpaid:-1', 'Most unpaid days'],
+  ['name:1', 'Name A–Z'],
+];
+function sortOptions(r) {
+  const cur = `${r.sort}:${r.dir}`;
+  const known = REQ_SORTS.some(([k]) => k === cur);
+  const col = COLS.find((c) => c[0] === r.sort);
+  return (known ? '' : `<option value="${cur}" selected>Sort: ${esc(col[1])} ${r.dir > 0 ? '▲' : '▼'}</option>`) +
+    REQ_SORTS.map(([k, lab]) => `<option value="${k}" ${k === cur ? 'selected' : ''}>Sort: ${lab}</option>`).join('');
+}
+function sortRequests(list) {
+  const r = state.req; const col = COLS.find((c) => c[0] === r.sort);
+  return list.slice().sort((a, b) => { const x = col[2](a), y = col[2](b); return (x < y ? -1 : x > y ? 1 : 0) * r.dir || a.name.localeCompare(b.name); });
+}
+function drawRequestsTable() {
+  const r = state.req;
+  const list = sortRequests(filteredRequests());
+  $('#rSum').innerHTML = `<b>${list.length}</b> request${list.length === 1 ? '' : 's'} · <b>${fmtNum(Math.round(sum(list, (l) => l.days) * 10) / 10)}</b> days · <b>${new Set(list.map(personKey)).size}</b> people`;
+  const shown = list.slice(0, r.limit);
+  const groupKey = { none: null, approval: (l) => STATUS[l.approval].label, person: (l) => l.name, month: (l) => (l.start ? `${MON[+l.start.slice(5, 7) - 1]} ${l.start.slice(0, 4)}` : 'No date'), type: (l) => l.type }[r.group];
+  let rows = '';
+  if (groupKey) {
+    const groups = new Map();
+    for (const l of shown) { const k = groupKey(l); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(l); }
+    for (const [k, ls] of groups) rows += `<tr class="grp"><td colspan="${COLS.length}">${esc(k)} <span class="muted" style="font-weight:500">· ${ls.length} · ${fmtNum(Math.round(sum(ls, (l) => l.days) * 10) / 10)} days</span></td></tr>` + ls.map(reqRow).join('');
+  } else rows = shown.map(reqRow).join('');
+  $('#rTable').innerHTML = `<table><thead><tr>${COLS.map(([k, lab, , cls, help]) => `<th class="${cls || ''}" data-sort="${k}">${lab}${help ? info(help) : ''}${r.sort === k ? `<span class="arr">${r.dir > 0 ? '▲' : '▼'}</span>` : ''}</th>`).join('')}</tr></thead>
+    <tbody>${rows || `<tr><td colspan="${COLS.length}"><div class="empty">No requests match these filters</div></td></tr>`}</tbody></table>
+    ${list.length > r.limit ? `<div class="more"><button class="btn" id="rMore">Show ${Math.min(100, list.length - r.limit)} more of ${list.length - r.limit}</button></div>` : ''}`;
+  $('#rTable thead').onclick = (e) => { const th = e.target.closest('[data-sort]'); if (!th) return; const k = th.dataset.sort; r.dir = r.sort === k ? -r.dir : (k === 'name' || k === 'manager' ? 1 : -1); r.sort = k; save('reqSort', [r.sort, r.dir]); $('#rSort').innerHTML = sortOptions(r); drawRequestsTable(); };
+  const more = $('#rMore'); if (more) more.onclick = () => { r.limit += 100; drawRequestsTable(); };
+}
+function reqRow(l) {
+  return `<tr data-leave="${l.id}">
+    <td><div class="who">${avatar(l, 'sm')}<div><div class="pname">${esc(l.name)}</div><div class="pmeta">${esc(l.dept || l.deptGroup)}</div></div></div></td>
+    <td>${typePill(l.type)}</td>
+    <td>${esc(fmtRange(l))}</td>
+    <td class="r num">${fmtNum(l.days)}</td>
+    <td class="r num">${fmtNum(l.deducted)}</td>
+    <td class="r num">${l.unpaid ? `<b style="color:var(--warn)">${fmtNum(l.unpaid)}</b>` : '<span class="faint">0</span>'}</td>
+    <td>${statusPill(l.approval)}</td>
+    <td>${finPill(l.finance)}</td>
+    <td>${esc(l.manager || '—')}</td>
+    <td class="muted">${esc(fmtDate(l.createdAt.slice(0, 10), { wd: false }))}</td></tr>`;
+}
+function downloadCsv(list, name, extra) {
+  const head = [...(extra ? [extra[0]] : []), 'Name', 'Email', 'Department', 'Type', 'Start', 'End', 'Days', 'Paid days (from leave balance)', 'Unpaid days (deduct from salary)', 'Status', 'Finance', 'Manager', 'Lead', 'Note', 'Filed', 'Notion'];
+  const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [head.map(q).join(',')].concat(list.map((l) => [...(extra ? [extra[1](l)] : []), l.name, l.email, l.dept || l.deptGroup, l.type, l.start, l.end, l.days, l.deducted, l.unpaid, l.approval, l.finance, l.manager, l.leads.join('; '), l.note, l.createdAt.slice(0, 10), l.url].map(q).join(',')));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
+  a.download = `${name}-${today()}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ---------------------------------------------------------------- finance
+/** Day counts that can't be right: missing, negative paid days, or days ≠ paid + unpaid. */
+const badNumbers = (l) => l.days == null || (l.deducted != null && l.deducted < 0) || (l.deducted != null && Math.abs(l.days - l.deducted - (l.unpaid || 0)) > 1e-9);
+const monthKey = (iso) => (iso ? iso.slice(0, 7) : '');
+const monthName = (k) => (k ? `${MON[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}` : 'No dates');
+const unpaidCell = (n) => (n ? `<b style="color:var(--warn)">${fmtNum(n)}</b>` : '<span class="faint">0</span>');
+const paidCell = (n) => (n == null ? '<span class="faint">—</span>' : n < 0 ? `<span class="neg">${fmtNum(n)}</span>` : fmtNum(n));
+
+/** Where each request stands for payroll. Every request is in exactly one stage. */
+const STAGES = {
+  fix_stale: { label: 'Fix: rejected but NEW', icon: '⚠', c: 'var(--bad)', help: 'finStale', fix: true },
+  fix_flag: { label: 'Fix: no finance flag', icon: '⚠', c: 'var(--bad)', help: 'finUnflagged', fix: true },
+  fix_days: { label: 'Fix: check day counts', icon: '⚠', c: 'var(--bad)', help: 'finBadNumbers', fix: true },
+  process: { label: 'To process', icon: '→', c: 'var(--accent)', help: 'finToProcess' },
+  waiting: { label: 'Waiting for manager', icon: '◷', c: 'var(--warn)', help: 'finWaiting' },
+  processed: { label: 'Processed', icon: '✓', c: 'var(--ok)', help: 'finProcessed' },
+  none: { label: 'Nothing to do', icon: '–', c: 'var(--off)', help: 'finNone' },
+};
+const STAGE_ORDER = Object.keys(STAGES);
+function stageOf(l) {
+  if (l.approval === 'Pending') return 'waiting';
+  if (l.approval === 'Approved') {
+    if (!l.finance) return 'fix_flag';
+    if (l.finance === 'PROCESSED') return 'processed';
+    return badNumbers(l) ? 'fix_days' : 'process';
+  }
+  return l.finance === 'NEW' ? 'fix_stale' : 'none'; // rejected or cancelled
+}
+const stagePill = (k) => { const s = STAGES[k]; return `<span class="st" style="--c:${s.c};cursor:help" data-tip="${esc(`<div class="tx">${G[s.help]}</div>`)}">${s.icon} ${s.label}</span>`; };
+/** Filters behind the highlight tiles and the Stage dropdown. */
+const STAGE_FILTERS = {
+  '': ['All stages', () => true],
+  process: ['To process', (l) => l._stage === 'process'],
+  unpaid: ['To process, with unpaid days', (l) => l._stage === 'process' && l.unpaid > 0],
+  fix: ['Needs fixing (all)', (l) => STAGES[l._stage].fix],
+  fix_stale: ['Fix: rejected but NEW', (l) => l._stage === 'fix_stale'],
+  fix_flag: ['Fix: no finance flag', (l) => l._stage === 'fix_flag'],
+  fix_days: ['Fix: check day counts', (l) => l._stage === 'fix_days'],
+  waiting: ['Waiting for manager', (l) => l._stage === 'waiting'],
+  processed: ['Processed', (l) => l._stage === 'processed'],
+  none: ['Nothing to do', (l) => l._stage === 'none'],
+};
+const FIN_COLS = [
+  ['name', 'Person', (l) => l.name.toLowerCase()],
+  ['type', 'Type', (l) => l.type, '', 'type'],
+  ['start', 'Dates', (l) => l.start || ''],
+  ['days', 'Days', (l) => l.days ?? -1, 'r', 'days'],
+  ['deducted', 'Paid days', (l) => l.deducted ?? -1, 'r', 'paid'],
+  ['unpaid', 'Unpaid days', (l) => l.unpaid ?? -1, 'r', 'unpaid'],
+  ['approval', 'Approval', (l) => l.approval, '', 'status'],
+  ['finance', 'Finance', (l) => l.finance || '', '', 'finance'],
+  ['stage', 'Stage', (l) => STAGE_ORDER.indexOf(l._stage), '', 'finStage'],
+  ['manager', 'Manager', (l) => l.manager.toLowerCase(), '', 'manager'],
+  ['createdAt', 'Filed', (l) => l.createdAt, '', 'filed'],
+];
+
+function renderFinance() {
+  const el = $('#v-finance');
+  const f = state.fin;
+  const all = scoped();
+  for (const l of all) l._stage = stageOf(l);
+  const months = [...new Set(all.map((l) => monthKey(l.start)).filter(Boolean))].sort().reverse();
+
+  el.innerHTML = `
+    <div class="toolbar"><div><h2 style="margin:0;font-size:18px;font-weight:600">Finance &amp; payroll</h2>
+      <div class="muted" style="font-size:12.5px">Every leave request and where it stands for payroll. Click a highlight to filter, or search for a person to see all of their requests.</div></div></div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="steps">
+        <div><span class="n">1</span><div><h4>Employee files leave</h4><p>A request is created in Notion with <b>For Finance Processing</b> set to <b>NEW</b>.</p></div></div>
+        <div><span class="n">2</span><div><h4>Manager decides</h4><p><b>Approved</b> requests come to finance. Rejected or cancelled ones need nothing paid or deducted.</p></div></div>
+        <div><span class="n">3</span><div><h4>Payroll handles it</h4><p>Deduct the <b>unpaid days</b> from salary, then set the request to <b>PROCESSED</b> in Notion.</p></div></div>
+      </div>
+      <div class="formula"><b>How a request's days split:</b><span>Days requested</span><span class="eq">=</span><span><b>Paid days</b>, covered by the leave balance (salary unchanged)</span><span class="eq">+</span><span><b style="color:var(--warn)">Unpaid days</b>, balance ran out (deduct from salary)</span></div>
+    </div>
+
+    <div class="grid g5" id="fTiles"></div>
+
+    <div class="toolbar" style="margin-top:18px">
+      <div class="seg" id="fView">${[['requests', 'By request'], ['people', 'By person']].map(([k, lab]) => `<button class="${f.view === k ? 'on' : ''}" data-view="${k}">${lab}</button>`).join('')}</div>${info('finView')}
+      <input class="search" id="fq" list="fPeople" placeholder="Search a person, email or note…" value="${esc(f.q)}" autocomplete="off">
+      <datalist id="fPeople">${[...new Set(all.map((l) => l.name))].sort((a, b) => a.localeCompare(b)).map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
+      <select class="sel" id="fStage">${Object.entries(STAGE_FILTERS).map(([k, [lab]]) => `<option value="${k}" ${f.stage === k ? 'selected' : ''}>${k ? 'Stage: ' : ''}${lab}</option>`).join('')}</select>${info('finStage')}
+      <select class="sel" id="fFin"><option value="">Any finance flag</option><option value="NEW" ${f.finance === 'NEW' ? 'selected' : ''}>Finance: NEW</option><option value="PROCESSED" ${f.finance === 'PROCESSED' ? 'selected' : ''}>Finance: PROCESSED</option><option value="none" ${f.finance === 'none' ? 'selected' : ''}>Finance: not set</option></select>
+      <select class="sel" id="fMonth"><option value="">All leave months</option>${months.map((m) => `<option value="${m}" ${f.month === m ? 'selected' : ''}>Leave in ${monthName(m)}</option>`).join('')}</select>${info('finMonth')}
+      <select class="sel" id="fType"><option value="">All leave types</option>${TYPES.map((t) => `<option ${f.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <button class="btn" id="fClear">Clear filters</button>
+      <button class="btn" id="fCsv">⇩ CSV</button>
+    </div>
+    <div class="summary" id="fSum" style="margin:0 0 10px"></div>
+    <div class="card tbl-wrap" id="fTable"></div>`;
+
+  const redraw = () => drawFinance(all);
+  $('#fq').oninput = (e) => { f.q = e.target.value; f.limit = 100; redraw(); };
+  const bind = (id, key) => { $(id).onchange = (e) => { f[key] = e.target.value; f.limit = 100; redraw(); }; };
+  bind('#fStage', 'stage'); bind('#fFin', 'finance'); bind('#fMonth', 'month'); bind('#fType', 'type');
+  $('#fClear').onclick = () => { Object.assign(f, { q: '', stage: '', finance: '', month: '', type: '', limit: 100 }); renderFinance(); };
+  $('#fView').onclick = (e) => { const b = e.target.closest('[data-view]'); if (!b) return; f.view = b.dataset.view; save('finView', f.view); f.limit = 100; $('#fView').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); redraw(); };
+  $('#fCsv').onclick = () => downloadCsv(financeRows(all), `finance${f.stage ? '-' + f.stage : ''}`, ['Finance stage', (l) => STAGES[l._stage].label]);
+  $('#fTiles').onclick = (e) => {
+    const t = e.target.closest('[data-stage]'); if (!t) return;
+    f.stage = f.stage === t.dataset.stage ? '' : t.dataset.stage; f.limit = 100;
+    $('#fStage').value = f.stage; redraw();
+  };
+  redraw();
+}
+
+/** Everything except the stage filter: the highlight tiles count within these. */
+function financeBase(all) {
+  const f = state.fin, q = f.q.trim().toLowerCase();
+  return all.filter((l) =>
+    (!f.finance || (f.finance === 'none' ? !l.finance : l.finance === f.finance)) &&
+    (!f.month || monthKey(l.start) === f.month) &&
+    (!f.type || l.type === f.type) &&
+    (!q || `${l.name} ${l.email || ''} ${l.note} ${l.manager}`.toLowerCase().includes(q)));
+}
+function financeRows(all) {
+  const f = state.fin;
+  const col = FIN_COLS.find((c) => c[0] === f.sort);
+  return financeBase(all).filter(STAGE_FILTERS[f.stage][1]).sort((a, b) => {
+    const x = col[2](a), y = col[2](b);
+    return (x < y ? -1 : x > y ? 1 : 0) * f.dir || (b.start || '').localeCompare(a.start || '') || a.name.localeCompare(b.name);
+  });
+}
+
+function drawFinance(all) {
+  const f = state.fin;
+  const base = financeBase(all);
+  const rows = financeRows(all);
+  const proc = base.filter((l) => l._stage === 'process');
+  const unpaidRows = proc.filter((l) => l.unpaid > 0);
+  const fix = base.filter((l) => STAGES[l._stage].fix);
+  const count = (k) => base.filter((l) => l._stage === k).length;
+  const tile = (key, icon, k, v, s, help, color) => `<button class="card tile ${f.stage === key ? 'active' : ''} ${key === 'fix' && v ? 'alert' : ''}" data-stage="${key}" aria-pressed="${f.stage === key}" title="${f.stage === key ? 'Click again to show all stages' : 'Click to show only these'}">
+    <span class="k"><span class="icon">${icon}</span>${k}${info(help)}</span><span class="v" ${color ? `style="color:${color}"` : ''}>${v}</span><span class="s">${s}</span></button>`;
+  $('#fTiles').innerHTML = [
+    tile('process', '→', 'To process', proc.length, `${fmtNum(sum(proc, (l) => l.days))} days · ${fmtNum(sum(proc, (l) => l.deducted))} paid from balances`, 'finToProcess'),
+    tile('unpaid', '−', 'Unpaid days to deduct', fmtNum(sum(unpaidRows, (l) => l.unpaid)), unpaidRows.length ? `in ${plural(unpaidRows.length, 'request')} · ${plural(new Set(unpaidRows.map(personKey)).size, 'person')}`.replace('persons', 'people') : 'nothing to deduct', 'finUnpaid', unpaidRows.length ? 'var(--warn)' : ''),
+    tile('fix', '⚠', 'Needs fixing in Notion', fix.length, fix.length ? [count('fix_stale') && `${count('fix_stale')} rejected/cancelled`, count('fix_flag') && `${count('fix_flag')} no flag`, count('fix_days') && `${count('fix_days')} day counts`].filter(Boolean).join(' · ') : 'all records look right', 'finFix'),
+    tile('waiting', '◷', 'Waiting for manager', count('waiting'), 'not approved yet · don\'t process', 'finWaiting'),
+    tile('processed', '✓', 'Processed', count('processed'), 'payroll already handled', 'finProcessed'),
+  ].join('');
+
+  const fixTodo = STAGE_FILTERS[f.stage] && (f.stage === 'fix' || f.stage.startsWith('fix_'));
+  $('#fSum').innerHTML = `<b>${rows.length}</b> request${rows.length === 1 ? '' : 's'}${f.stage ? ` · ${esc(STAGE_FILTERS[f.stage][0])}` : ''}${f.q.trim() ? ` matching “${esc(f.q.trim())}”` : ''} · <b>${fmtNum(sum(rows, (l) => l.days))}</b> days · <b>${fmtNum(sum(rows, (l) => l.deducted))}</b> paid · <b style="color:var(--warn)">${fmtNum(sum(rows, (l) => l.unpaid))}</b> unpaid` +
+    (fixTodo ? `<div class="todo" style="margin-top:8px;border:1px solid var(--border);border-radius:10px"><b>What to do:</b><span>${f.stage === 'fix' ? 'Each row\'s <b>Stage</b> says what\'s wrong. Hover over it for the fix.' : G[STAGES[f.stage].help].replace(/<\/?p>/g, ' ')}</span></div>` : '');
+
+  if (f.view === 'people') { drawFinancePeople(all, rows); return; }
+  const shown = rows.slice(0, f.limit);
+  $('#fTable').innerHTML = `<table><thead><tr>${FIN_COLS.map(([k, lab, , cls, help]) => `<th class="${cls || ''}" data-sort="${k}">${lab}${help ? info(help) : ''}${f.sort === k ? `<span class="arr">${f.dir > 0 ? '▲' : '▼'}</span>` : ''}</th>`).join('')}<th></th></tr></thead><tbody>
+    ${shown.map((l) => `<tr data-leave="${l.id}">
+      <td><div class="who">${avatar(l, 'sm')}<div><div class="pname">${esc(l.name)}</div><div class="pmeta">${esc(l.dept || l.deptGroup)}</div></div></div></td>
+      <td>${typePill(l.type)}</td>
+      <td>${esc(fmtRange(l))}</td>
+      <td class="r num">${fmtNum(l.days)}</td>
+      <td class="r num">${paidCell(l.deducted)}</td>
+      <td class="r num">${unpaidCell(l.unpaid)}</td>
+      <td>${statusPill(l.approval)}</td>
+      <td>${finPill(l.finance)}</td>
+      <td>${stagePill(l._stage)}</td>
+      <td>${esc(l.manager || '—')}</td>
+      <td class="muted">${esc(fmtDate(l.createdAt.slice(0, 10), { wd: false }))}</td>
+      <td><a href="${esc(l.url)}" target="_blank" rel="noopener">Notion ↗</a></td></tr>`).join('') ||
+      `<tr><td colspan="${FIN_COLS.length + 1}"><div class="empty">No requests match these filters</div></td></tr>`}
+    </tbody></table>
+    ${rows.length > f.limit ? `<div class="more"><button class="btn" id="fMore">Show ${Math.min(100, rows.length - f.limit)} more of ${rows.length - f.limit}</button></div>` : ''}`;
+  $('#fTable thead').onclick = (e) => {
+    const th = e.target.closest('[data-sort]'); if (!th) return;
+    const k = th.dataset.sort; f.dir = f.sort === k ? -f.dir : (k === 'name' || k === 'manager' || k === 'stage' ? 1 : -1); f.sort = k; drawFinance(all);
+  };
+  const more = $('#fMore'); if (more) more.onclick = () => { f.limit += 100; drawFinance(all); };
+}
+
+/** Same filtered requests, grouped under one header row per person. People with the newest request come first. */
+function drawFinancePeople(all, rows) {
+  const f = state.fin;
+  const groups = new Map();
+  for (const l of rows) {
+    const k = personKey(l);
+    if (!groups.has(k)) groups.set(k, { l, items: [] });
+    groups.get(k).items.push(l);
+  }
+  const list = [...groups.values()];
+  for (const g of list) g.items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  list.sort((a, b) => b.items[0].createdAt.localeCompare(a.items[0].createdAt) || a.l.name.localeCompare(b.l.name));
+  const shown = list.slice(0, Math.ceil(f.limit / 2));
+  const head = `<th>Leave${info('type')}</th><th>Dates</th><th class="r">Days${info('days')}</th><th class="r">Paid days${info('paid')}</th><th class="r">Unpaid days${info('unpaid')}</th><th>Approval${info('status')}</th><th>Finance${info('finance')}</th><th>Stage${info('finStage')}</th><th>Manager${info('manager')}</th><th>Filed${info('filed')}</th><th></th>`;
+  $('#fTable').innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>
+    ${shown.map((g) => {
+      const stages = STAGE_ORDER.map((k) => [k, g.items.filter((l) => l._stage === k).length]).filter(([, n]) => n);
+      return `<tr class="person" data-person="${esc(personKey(g.l))}"><td colspan="2"><div class="who">${avatar(g.l, 'sm')}<div><div class="pname">${esc(g.l.name)}</div><div class="pmeta">${esc(g.l.dept || g.l.deptGroup)} · ${plural(g.items.length, 'request')}</div></div></div></td>
+        <td class="r num">${fmtNum(sum(g.items, (l) => l.days))}</td><td class="r num">${paidCell(sum(g.items, (l) => l.deducted))}</td><td class="r num">${unpaidCell(sum(g.items, (l) => l.unpaid))}</td>
+        <td colspan="6"><div style="display:flex;gap:6px;flex-wrap:wrap">${stages.map(([k, n]) => `<span class="st" style="--c:${STAGES[k].c}">${STAGES[k].icon} ${n} ${esc(STAGES[k].label.toLowerCase())}</span>`).join('')}</div></td></tr>` +
+        g.items.map((l) => `<tr class="sub" data-leave="${l.id}"><td>${typePill(l.type)}</td><td>${esc(fmtRange(l))}</td>
+          <td class="r num">${fmtNum(l.days)}</td><td class="r num">${paidCell(l.deducted)}</td><td class="r num">${unpaidCell(l.unpaid)}</td>
+          <td>${statusPill(l.approval)}</td><td>${finPill(l.finance)}</td><td>${stagePill(l._stage)}</td><td>${esc(l.manager || '—')}</td>
+          <td class="muted">${esc(fmtDate(l.createdAt.slice(0, 10), { wd: false }))}</td><td><a href="${esc(l.url)}" target="_blank" rel="noopener">Notion ↗</a></td></tr>`).join('');
+    }).join('') || '<tr><td colspan="11"><div class="empty">No requests match these filters</div></td></tr>'}
+    </tbody></table>
+    ${list.length > shown.length ? `<div class="more"><button class="btn" id="fMore">Show ${Math.min(50, list.length - shown.length)} more of ${list.length - shown.length} people</button></div>` : ''}`;
+  const more = $('#fMore'); if (more) more.onclick = () => { f.limit += 100; drawFinance(all); };
+}
+
+// ---------------------------------------------------------------- people
+function peopleIndex(list) {
+  const map = new Map();
+  for (const l of list) {
+    const k = personKey(l);
+    if (!map.has(k)) map.set(k, { key: k, leaves: [] });
+    map.get(k).leaves.push(l);
+  }
+  for (const p of map.values()) {
+    p.leaves.sort((a, b) => (b.start || '').localeCompare(a.start || ''));
+    const latest = p.leaves.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    p.latest = latest[0];
+    p.name = (latest.find((l) => l.avatar) || latest[0]).name;
+    p.avatar = latest.find((l) => l.avatar)?.avatar || null;
+    const emp = latest.find((l) => l.employee)?.employee;
+    const live = emp && Object.values(emp.balance).some((v) => v != null);
+    const snap = latest.find((l) => l.balance.vacation != null || l.balance.sick != null);
+    p.balanceLive = !!live;
+    p.balance = live ? emp.balance : snap?.balance || null;
+    p.balanceAt = live ? emp.balanceUpdated : snap?.createdAt || null;
+  }
+  return map;
+}
+function personStats(p, year) {
+  const a = `${year}-01-01`, b = `${year}-12-31`;
+  const appr = p.leaves.filter((l) => l.approval === 'Approved');
+  const byType = Object.fromEntries(TYPES.map((t) => [t, sum(appr.filter((l) => l.type === t), (l) => daysInRange(l, a, b))]));
+  const total = sum(TYPES, (t) => byType[t]);
+  const unpaid = sum(appr.filter((l) => l.start && l.start.startsWith(String(year))), (l) => l.unpaid);
+  const t = today();
+  const current = appr.find((l) => overlaps(l, t, t));
+  const next = p.leaves.filter((l) => (l.approval === 'Approved' || l.approval === 'Pending') && l.start > t).sort((x, y) => x.start.localeCompare(y.start))[0];
+  const pending = p.leaves.filter((l) => l.approval === 'Pending').length;
+  return { byType, total, unpaid, current, next, pending, count: p.leaves.filter((l) => overlaps(l, a, b)).length };
+}
+const balLabel = (p) => p.balanceLive
+  ? `Leave balance${p.balanceAt ? ' · updated ' + esc(fmtDate(p.balanceAt.slice(0, 10), { wd: false })) : ''}${info('pBalanceLive')}`
+  : `Balance on last request · ${esc(fmtDate(p.balanceAt.slice(0, 10), { wd: false }))}${info('pBalance')}`;
+const balBox = (bal) => `<div class="balances">${[['Vacation', 'vacation'], ['Sick', 'sick'], ['Emergency', 'emergency']].map(([lab, k]) => `<div><b>${bal && bal[k] != null ? fmtNum(bal[k]) : '—'}</b>${lab}</div>`).join('')}</div>`;
+
+function renderPeople() {
+  const el = $('#v-people');
+  const s = state.ppl;
+  const idx = peopleIndex(scoped());
+  const years = [...new Set(state.leaves.map((l) => l.start?.slice(0, 4)).filter(Boolean))].sort().reverse();
+  const q = s.q.trim().toLowerCase();
+  let list = [...idx.values()].map((p) => ({ p, st: personStats(p, s.year) }))
+    .filter(({ p, st }) => (q ? `${p.name} ${p.key} ${p.latest.dept}`.toLowerCase().includes(q) : st.count > 0 || st.pending || st.next));
+  const sorters = {
+    days: (a, b) => b.st.total - a.st.total,
+    unpaid: (a, b) => b.st.unpaid - a.st.unpaid || b.st.total - a.st.total,
+    name: (a, b) => a.p.name.localeCompare(b.p.name),
+    next: (a, b) => (a.st.current ? '0' : a.st.next?.start || '9').localeCompare(b.st.current ? '0' : b.st.next?.start || '9'),
+  };
+  list.sort((a, b) => sorters[s.sort](a, b) || a.p.name.localeCompare(b.p.name));
+  const t = today();
+
+  el.innerHTML = `
+    <div class="toolbar">
+      <input class="search" id="pq" placeholder="Search people…" value="${esc(s.q)}">
+      <select class="sel" id="pYear">${years.map((y) => `<option ${+y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select>
+      <select class="sel" id="pSort">${[['days', 'Most days off'], ['unpaid', 'Most unpaid days'], ['next', 'Next leave'], ['name', 'Name']].map(([k, lab]) => `<option value="${k}" ${s.sort === k ? 'selected' : ''}>Sort: ${lab}</option>`).join('')}</select>
+      <span class="summary"><b>${list.length}</b> people${q ? '' : ` with leave in ${s.year}`}${state.hiddenFormer ? ` · former employees hidden${info('former')}` : ''}</span>
+    </div>
+    <div class="pgrid">${list.map(({ p, st }) => `
+      <div class="card pcard" data-person="${esc(p.key)}">
+        <div class="top">${avatar({ name: p.name, avatar: p.avatar })}<div class="pmain"><div class="pname">${esc(p.name)}</div><div class="pmeta">${esc(p.latest.dept || p.latest.deptGroup)}${p.latest.manager ? ' · ' + esc(p.latest.manager) : ''}</div></div>
+          ${st.pending ? `<span class="st" style="--c:var(--warn)" data-tip="${esc(`<div class=\"tx\">${G.pPending}</div>`)}">◷ ${st.pending} pending</span>` : ''}</div>
+        <div><div style="display:flex;align-items:baseline;gap:8px"><span class="big">${fmtNum(Math.round(st.total * 10) / 10)}</span><span class="muted" style="font-size:12.5px">days off in ${s.year}${info('pDays')}</span>${st.unpaid ? `<span class="spacer"></span><span style="font-size:12.5px;color:var(--warn);font-weight:600">${fmtNum(st.unpaid)} unpaid${info('pUnpaid')}</span>` : ''}</div>
+          <div class="stackbar" style="margin:8px 0">${st.total ? TYPES.filter((ty) => st.byType[ty]).map((ty) => `<i style="--c:${typeColor(ty)};width:${(st.byType[ty] / st.total) * 100}%"></i>`).join('') : ''}</div>
+          <div class="kv">${TYPES.filter((ty) => st.byType[ty]).map((ty) => `<span><span class="type" style="--c:${typeColor(ty)}">${typeShort(ty)}</span> <b>${fmtNum(Math.round(st.byType[ty] * 10) / 10)}</b></span>`).join('') || '<span>No approved leave</span>'}</div></div>
+        ${p.balance ? `<div><div class="faint" style="font-size:11.5px;margin-bottom:5px">${balLabel(p)}</div>${balBox(p.balance)}</div>` : ''}
+        <div class="next">${info('pNext')}${st.current ? `<span class="st" style="--c:${typeColor(st.current.type)}">On leave</span> until ${esc(fmtDate(st.current.end || st.current.start))}` : st.next ? `<span class="faint">Next</span> ${typePill(st.next.type)} <span>${esc(fmtRange(st.next))}</span>${st.next.approval === 'Pending' ? '<span class="faint">(pending)</span>' : ''}` : '<span class="faint">No upcoming leave</span>'}</div>
+      </div>`).join('') || '<div class="empty">Nobody found</div>'}</div>`;
+  $('#pq').oninput = (e) => { s.q = e.target.value; renderPeople(); const i = $('#pq'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); };
+  $('#pYear').onchange = (e) => { s.year = +e.target.value; renderPeople(); };
+  $('#pSort').onchange = (e) => { s.sort = e.target.value; renderPeople(); };
+}
+
+// ---------------------------------------------------------------- drawer
+function openDrawer(title, body) {
+  $('#dTitle').innerHTML = title; $('#dBody').innerHTML = body; $('#dBody').scrollTop = 0;
+  $('#drawer').classList.add('open'); $('#scrim').classList.add('open'); $('#drawer').setAttribute('aria-hidden', 'false');
+}
+function closeDrawer() { $('#drawer').classList.remove('open'); $('#scrim').classList.remove('open'); $('#drawer').setAttribute('aria-hidden', 'true'); }
+$('#dClose').onclick = closeDrawer; $('#scrim').onclick = closeDrawer;
+addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+
+function showLeave(id) {
+  const l = state.leaves.find((x) => x.id === id); if (!l) return;
+  const row = (k, v, help) => `<dt>${k}${help ? info(help) : ''}</dt><dd>${v}</dd>`;
+  openDrawer(`<div style="display:flex;gap:12px;align-items:center">${avatar(l)}<div style="min-width:0"><h2>${esc(l.name)}</h2><div class="pmeta">${esc(l.title)}</div></div></div>`, `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">${statusPill(l.approval)}${typePill(l.type)}${finPill(l.finance)}</div>
+    <div style="font-size:20px;font-weight:600;letter-spacing:-.01em">${esc(fmtRange(l, { year: true }))}</div>
+    <div class="muted" style="margin:2px 0 18px">${esc(daysLabel(l.days))}${l.start ? ' · ' + (l.start > today() ? 'starts ' : 'started ') + relDay(l.start) : ''}</div>
+    ${l.note ? `<div class="note" style="padding:10px 12px;border-radius:8px;background:var(--surface-2);margin-bottom:18px;white-space:pre-wrap">${esc(l.note)}</div>` : ''}
+    <dl class="dl">
+      ${row('Email', esc(l.email || '—'))}
+      ${row('Department', esc(l.dept || '—'))}
+      ${row('Manager', esc(l.manager || '—') + (l.managerEmail ? ` <span class="faint">${esc(l.managerEmail)}</span>` : ''))}
+      ${row('Lead', esc(l.leads.join(', ') || '—'), 'lead')}
+      ${row('Days requested', esc(fmtNum(l.days)), 'days')}
+      ${row('Paid days', esc(fmtNum(l.deducted)), 'paid')}
+      ${row('Unpaid days', l.unpaid ? `<b style="color:var(--warn)">${fmtNum(l.unpaid)}</b>` : '0', 'unpaid')}
+      ${row('Balances on request', `Vacation <b>${fmtNum(l.balance.vacation)}</b> · Sick <b>${fmtNum(l.balance.sick)}</b> · Emergency <b>${fmtNum(l.balance.emergency)}</b>`, 'balances')}
+      ${row('For finance', finPill(l.finance), 'finance')}
+      ${row('Payroll stage', stagePill(stageOf(l)), 'finStage')}
+      ${row('Filed', esc(new Date(l.createdAt).toLocaleString()), 'filed')}
+      ${row('Last edited', esc(new Date(l.editedAt).toLocaleString()))}
+    </dl>
+    <div style="display:flex;gap:8px;margin-top:22px"><a class="btn primary" href="${esc(l.url)}" target="_blank" rel="noopener">Open in Notion ↗</a><button class="btn" data-person="${esc(personKey(l))}">All leave for ${esc(l.name.split(' ')[0])}</button></div>`);
+}
+
+function showPerson(key) {
+  const p = peopleIndex(state.leaves).get(key); if (!p) return;
+  const year = new Date().getFullYear();
+  const st = personStats(p, year), stPrev = personStats(p, year - 1);
+  const byYear = new Map();
+  for (const l of p.leaves) { const y = l.start?.slice(0, 4) || 'No date'; if (!byYear.has(y)) byYear.set(y, []); byYear.get(y).push(l); }
+  const statBlock = (y, s) => `<div class="card" style="padding:12px 14px"><div class="faint" style="font-size:11.5px">${y}</div><div style="font-size:20px;font-weight:700" class="num">${fmtNum(Math.round(s.total * 10) / 10)} <span class="muted" style="font-size:12px;font-weight:500">days</span></div>
+    <div class="kv" style="margin-top:4px">${TYPES.filter((t) => s.byType[t]).map((t) => `<span>${typeShort(t)} <b>${fmtNum(Math.round(s.byType[t] * 10) / 10)}</b></span>`).join('') || '<span>—</span>'}${s.unpaid ? `<span style="color:var(--warn)">Unpaid <b style="color:var(--warn)">${fmtNum(s.unpaid)}</b></span>` : ''}</div></div>`;
+  openDrawer(`<div style="display:flex;gap:12px;align-items:center">${avatar({ name: p.name, avatar: p.avatar }, 'lg')}<div style="min-width:0"><h2>${esc(p.name)}</h2><div class="pmeta">${esc(p.latest.dept || p.latest.deptGroup)}${p.latest.manager ? ' · Manager: ' + esc(p.latest.manager) : ''}</div><div class="pmeta">${esc(p.latest.email || '')}</div></div></div>`, `
+    ${p.balance ? `<div class="faint" style="font-size:12px;margin-bottom:6px">${balLabel(p)}</div>${balBox(p.balance)}` : ''}
+    <div class="grid g2" style="margin-top:14px">${statBlock(year, st)}${statBlock(year - 1, stPrev)}</div>
+    <div class="hist" style="margin-top:8px">${[...byYear].map(([y, ls]) => `<div class="yr">${y} · ${ls.length} REQUEST${ls.length === 1 ? '' : 'S'}</div>` + ls.map((l) => `
+      <div class="h" data-leave="${l.id}"><div><div class="hd">${esc(fmtRange(l, { year: false }))}</div><div class="hm">${typePill(l.type)}<span>${esc(daysLabel(l.days))}</span>${l.unpaid ? `<span style="color:var(--warn)">${fmtNum(l.unpaid)} unpaid</span>` : ''}${l.note ? `<span class="faint" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">${esc(l.note)}</span>` : ''}</div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">${statusPill(l.approval)}${finPill(l.finance)}</div></div>`).join('')).join('')}</div>`);
+}
+
+// Capture phase, so tapping an ⓘ never also sorts a column, opens a row or switches tab.
+document.addEventListener('click', (e) => {
+  const inf = e.target.closest?.('.info');
+  if (inf) { e.preventDefault(); e.stopPropagation(); showTipAt(inf); return; }
+  if (!e.target.closest?.('[data-tip]')) hideTip();
+}, true);
+document.addEventListener('click', (e) => {
+  const go = e.target.closest('[data-go]');
+  if (go) { if (go.dataset.go === 'finance') Object.assign(state.fin, { stage: 'process', q: '', limit: 100 }); setTab(go.dataset.go); return; }
+  if (e.target.closest('a[href^="http"], select, input, .btn.primary')) return;
+  const lv = e.target.closest('[data-leave]'); if (lv) { e.preventDefault(); hideTip(); showLeave(lv.dataset.leave); return; }
+  const pp = e.target.closest('[data-person]'); if (pp) { e.preventDefault(); showPerson(pp.dataset.person); }
+});
+
+// ---------------------------------------------------------------- data
+function renderTab() {
+  if (!state.leaves.length) return;
+  ({ overview: renderOverview, approvals: renderApprovals, calendar: renderCalendar, requests: renderRequests, finance: renderFinance, people: renderPeople })[state.tab]();
+}
+function renderAll() { renderDeptFilters(); renderBadges(); renderTab(); }
+
+async function load() {
+  const res = await fetch('/api/leaves');
+  if (!res.ok) throw new Error(res.status === 503 ? 'The server is still loading from Notion…' : `HTTP ${res.status}`);
+  const data = await res.json();
+  state.leaves = data.leaves; state.version = data.version; state.fetchedAt = res.headers.get('X-Fetched-At');
+  state.hiddenFormer = data.hiddenFormer || 0;
+  G.former = `<p><b>${state.hiddenFormer}</b> requests from people who no longer work here (Employment Status <b>Resigned</b> or <b>Fired</b> in Team Members) are hidden everywhere: in lists, totals, charts and CSV exports.</p><p>People who can't be found in Team Members are still shown.</p>`;
+  $('#syncInfo').innerHTML = info('sync');
+  $('#loading').hidden = true;
+  // Keep the search box focus when a background update re-renders the table
+  const focused = document.activeElement?.id;
+  renderAll();
+  if (focused && $('#' + focused)) { const i = $('#' + focused); i.focus(); if (i.setSelectionRange && i.value) i.setSelectionRange(i.value.length, i.value.length); }
+  updateAgo();
+}
+function updateAgo() {
+  $('#ago').textContent = state.fetchedAt ? `Synced ${ago(state.fetchedAt)}` : 'Loading…';
+}
+async function poll() {
+  try {
+    const s = await (await fetch('/api/status')).json();
+    state.fetchedAt = s.fetchedAt;
+    $('#sync').classList.toggle('err', !!s.lastError);
+    $('#errBanner').hidden = !s.lastError;
+    if (s.lastError) $('#errBanner').textContent = `Couldn't reach Notion on the last sync (${s.lastError}). Showing the last good data.`;
+    if (s.version !== state.version) await load();
+  } catch { $('#sync').classList.add('err'); }
+  updateAgo();
+}
+$('#refresh').onclick = async () => {
+  const b = $('#refresh'); b.disabled = true; b.textContent = '↻ Syncing…';
+  try {
+    const r = await fetch('/api/refresh', { method: 'POST' });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); b.textContent = j.error || 'Failed'; setTimeout(() => { b.textContent = '↻ Refresh'; b.disabled = false; }, 2500); return; }
+    await poll();
+  } finally { if (b.textContent === '↻ Syncing…') { b.textContent = '↻ Refresh'; b.disabled = false; } }
+};
+let resizeT; addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (state.tab === 'overview' && state.leaves.length) drawMonthChart(approved(scoped())); }, 150); });
+
+(async function boot() {
+  const initial = location.hash.slice(1);
+  setTab($('#v-' + initial) ? initial : 'overview');
+  for (let i = 0; ; i++) {
+    try { await load(); break; } catch (err) { $('#loading').textContent = err.message; await new Promise((r) => setTimeout(r, 3000)); }
+  }
+  setInterval(poll, 30_000);
+  setInterval(() => { updateAgo(); }, 30_000);
+})();
+</script>
+</body>
+</html>
