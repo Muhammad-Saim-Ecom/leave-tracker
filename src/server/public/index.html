@@ -109,8 +109,9 @@
   .tab.active { background: var(--surface-3); color: var(--text); font-weight: 600; }
   .tab .badge {
     min-width: 19px; height: 19px; padding: 0 6px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
-    display: inline-grid; place-items: center; background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn);
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px; background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn);
   }
+  .tab .badge .past { color: var(--faint); font-weight: 500; }
   .spacer { flex: 1; }
   .sync { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 10px; white-space: nowrap; }
   .sync .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; margin-right: 6px; }
@@ -837,10 +838,17 @@ addEventListener('hashchange', () => { const t = location.hash.slice(1); if (t &
 
 function renderBadges() {
   const t = today();
-  const pend = scoped().filter((l) => l.approval === 'Pending' && !(l.start && (l.end || l.start) < t)).length;
+  const pendAll = scoped().filter((l) => l.approval === 'Pending');
+  const past = pendAll.filter((l) => l.start && (l.end || l.start) < t).length;
+  const pend = pendAll.length - past;
   const fin = scoped().filter((l) => stageOf(l) === 'process').length;
   const set = (id, n) => { const el = $(id); el.hidden = !n; el.textContent = n; };
-  set('#b-approvals', pend); set('#b-finance', fin);
+  set('#b-finance', fin);
+  // Open requests, then (greyed) requests whose dates are over but were never decided
+  const ap = $('#b-approvals');
+  ap.hidden = !pendAll.length;
+  ap.innerHTML = `${pend}${past ? `<span class="past">+ ${past}</span>` : ''}`;
+  ap.dataset.tip = `<div class="tx"><p><b>${pend}</b> waiting for a decision.</p>${past ? `<p><b>${past}</b> past, never decided: the leave dates are over but the request was never approved or rejected. Close these in Notion.</p>` : ''}</div>`;
 }
 
 // ---------------------------------------------------------------- overview
