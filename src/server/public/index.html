@@ -421,6 +421,13 @@
     overflow: hidden; white-space: nowrap; min-width: 0; transition: transform .12s, box-shadow .12s;
   }
   .bar .bl { white-space: nowrap; }
+  /* The person's photo always sits inside the bar, at its start */
+  .bar > .av { width: 20px; height: 20px; font-size: 8.5px; margin: 0 6px 0 -4px; box-shadow: 0 0 0 1.5px var(--surface); }
+  .bar.half > .av { width: 12px; height: 12px; font-size: 0; margin-left: -6px; }
+  /* Short bars (a day or two): no side padding, photo centred, label beside the bar */
+  .bar.tight { padding: 0; justify-content: center; }
+  .bar.tight > .av { margin: 0; }
+  .bar.noav > .av { display: none; }
   .bar.half { height: 14px; }
   /* Label that doesn't fit inside a short bar is drawn next to it instead of being cut off */
   .bar.out { overflow: visible; }
@@ -776,10 +783,10 @@ const G = {
   filed: `<p>When the request was created in Notion.</p>`,
 
   calCount: `<p>How many different people have <b>approved</b> leave that day. Pending requests aren't counted.</p><p>The busiest day in view is shown in orange. Click a day to see who's out.</p>`,
-  calMonth: `<p>Each day shows who has leave. The <b>deeper the colour</b>, the more people have approved leave that day.</p><p>The dot on an avatar is the leave type; a <b>dashed ring</b> means it's still waiting for approval. The thin strip at the bottom splits the day's absences by type.</p><p>Click a day to see who's out in the panel on the right.</p>`,
+  calMonth: `<p>Each day shows who has leave. The <b>deeper the colour</b>, the more people have approved leave that day.</p><p>The dot on an avatar is <b>green</b> when the leave is approved and <b>orange</b> with a dashed ring while it's still waiting for approval. The thin strip at the bottom splits the day's absences into approved and pending.</p><p>Click a day to see who's out in the panel on the right.</p>`,
   calDay: `<p>Everyone with leave on the selected day, grouped by department.</p><p><b>Back</b> is their first working day (Monday to Friday) after the leave ends. Click a person for the request.</p>`,
   calKpi: `<p>Totals for the dates in view.</p><p><b>People off</b>: different people with approved leave on at least one day. The small chart is people out per weekday.<br><b>Days booked</b>: approved leave days that fall in this period (a half day counts 0.5).<br><b>Busiest day</b>: the day the most people are out. Click it to select it.<br><b>Awaiting approval</b>: requests in this period with no decision yet.</p>`,
-  calBars: `<p><b>Solid bar</b>: approved leave.<br><b>Striped bar</b>: waiting for approval.<br><b>Thin bar</b>: less than a full day (for example a half day).</p><p>The colour is the leave type. Hover over a bar for details, or click it to open the request.</p>`,
+  calBars: `<p><b>Solid bar</b>: approved leave.<br><b>Striped bar</b>: waiting for approval.<br><b>Thin bar</b>: less than a full day (for example a half day).</p><p><b>Green</b> is approved and <b>orange</b> is waiting for approval, whatever the leave type. The type is written on the bar. Hover over a bar for details, or click it to open the request.</p>`,
   calRange: `<p>Pick any start and end date. ‹ and › move the whole range by its length, and <b>Today</b> moves it to start today.</p><p>Up to about 6 months at a time; scroll sideways for long ranges.</p>`,
   calPending: `<p>Also show requests that haven't been approved yet, as striped bars.</p>`,
 
@@ -1068,7 +1075,9 @@ function renderApprovals() {
 
 // ---------------------------------------------------------------- calendar
 /** Avatar with a leave-type dot, and a dashed ring while the request waits for approval. */
-const avTyped = (l, cls = 'sm') => `<span class="avt ${l.approval === 'Pending' ? 'pend' : ''}" style="--c:${typeColor(l.type)}">${avatar(l, cls)}</span>`;
+/** Calendar colours mean approval, not leave type: green approved, orange waiting. */
+const calColor = (l) => (l.approval === 'Pending' ? 'var(--warn)' : 'var(--ok)');
+const avTyped = (l, cls = 'sm') => `<span class="avt ${l.approval === 'Pending' ? 'pend' : ''}" style="--c:${calColor(l)}">${avatar(l, cls)}</span>`;
 const round1 = (n) => Math.round(n * 10) / 10;
 
 function renderCalendar() {
@@ -1126,7 +1135,7 @@ function renderCalendar() {
   const dayTip = (d) => {
     const ps = peopleOn(d);
     if (!ps.length) return '';
-    return esc(`<div class="t">${esc(fmtDate(d))}</div>` + ps.slice(0, 12).map((x) => `<div class="r"><span><i style="--c:${typeColor(x.l.type)}"></i>${esc(x.l.name)}</span><span class="muted">${esc(typeShort(x.l.type))}${x.w < 1 ? ' · ' + esc(daysLabel(x.w)) : ''}${x.l.approval === 'Pending' ? ' · pending' : ''}</span></div>`).join('') + (ps.length > 12 ? `<div class="muted">+${ps.length - 12} more</div>` : ''));
+    return esc(`<div class="t">${esc(fmtDate(d))}</div>` + ps.slice(0, 12).map((x) => `<div class="r"><span><i style="--c:${calColor(x.l)}"></i>${esc(x.l.name)}</span><span class="muted">${esc(typeShort(x.l.type))}${x.w < 1 ? ' · ' + esc(daysLabel(x.w)) : ''}${x.l.approval === 'Pending' ? ' · pending' : ''}</span></div>`).join('') + (ps.length > 12 ? `<div class="muted">+${ps.length - 12} more</div>` : ''));
   };
 
   // ---- month grid
@@ -1139,12 +1148,12 @@ function renderCalendar() {
       const ps = peopleOn(d), off = offOn.get(d), pend = ps.length - off;
       const heat = off ? Math.round(10 + (off / Math.max(maxOff, 1)) * 30) : 0;
       const dt = new Date(toMs(d));
-      const types = TYPES.map((ty) => [ty, ps.filter((x) => x.l.type === ty && x.l.approval === 'Approved').length]).filter(([, k]) => k);
+      const split = [['var(--ok)', off], ['var(--warn)', pend]].filter(([, k]) => k);
       return `<button class="mday ${d < a || d > b ? 'pad' : ''} ${isWeekend(d) ? 'we' : ''} ${d === t ? 'today' : ''} ${d === c.sel ? 'picked' : ''}" style="--heat:${heat}%" data-day="${d}" ${ps.length ? `data-tip="${dayTip(d)}"` : ''} aria-label="${esc(fmtDate(d))}: ${off} out${pend ? `, ${pend} pending` : ''}">
         <span class="dn"><b>${dt.getUTCDate()}${dt.getUTCDate() === 1 ? `<small>${MON[dt.getUTCMonth()]}</small>` : ''}</b>${off ? `<span class="cnt">${off} out</span>` : ''}</span>
         ${ps.length ? `<span class="stackav">${ps.slice(0, maxAv).map((x) => avTyped(x.l)).join('')}${ps.length > maxAv ? `<span class="av sm more-av">+${ps.length - maxAv}</span>` : ''}</span>` : ''}
         ${pend ? `<span class="pendn">${pend} pending</span>` : ''}
-        ${types.length ? `<span class="mtypes">${types.map(([ty, k]) => `<i style="--c:${typeColor(ty)};flex:${k}"></i>`).join('')}</span>` : ''}
+        ${split.length ? `<span class="mtypes">${split.map(([col, k]) => `<i style="--c:${col};flex:${k}"></i>`).join('')}</span>` : ''}
       </button>`;
     }).join('');
     return `<div class="card month" style="--cols:${c.weekends ? 7 : 5}"><div class="mhead">${heads}</div><div class="mgrid">${cells}</div></div>`;
@@ -1173,7 +1182,7 @@ function renderCalendar() {
       const half = l.days != null && l.days < 1;
       // Full label; fitBarLabels() shortens it or moves it beside the bar after layout
       const label = `${typeShort(l.type)} · ${daysLabel(l.days)}${l.approval === 'Pending' ? ' · pending' : ''}`;
-      return `<div class="bar ${l.approval === 'Pending' ? 'pending' : ''} ${half ? 'half' : ''} ${l.start < a ? 'cut-l' : ''} ${(l.end || l.start) > b ? 'cut-r' : ''}" style="--c:${typeColor(l.type)};grid-column:${i0 + 2} / ${i1 + 3}" data-leave="${l.id}" data-tip="${tipLeave(l)}" data-short="${esc(typeShort(l.type))}"><span class="bl">${esc(label)}</span></div>`;
+      return `<div class="bar ${l.approval === 'Pending' ? 'pending' : ''} ${half ? 'half' : ''} ${l.start < a ? 'cut-l' : ''} ${(l.end || l.start) > b ? 'cut-r' : ''}" style="--c:${calColor(l)};grid-column:${i0 + 2} / ${i1 + 3}" data-leave="${l.id}" data-tip="${tipLeave(l)}" data-short="${esc(typeShort(l.type))}">${avatar(l)}<span class="bl">${esc(label)}</span></div>`;
     }).join('');
     const capMax = Math.max(1, maxOff);
     // Fit every day on screen when there's room (6 weeks fits on a laptop); very long ranges scroll sideways
@@ -1239,7 +1248,7 @@ function renderCalendar() {
       <label class="toggle"><input type="checkbox" id="calPend" ${c.pending ? 'checked' : ''}>Pending</label>${info('calPending')}
       <label class="toggle"><input type="checkbox" id="calWe" ${c.weekends ? 'checked' : ''}>Weekends</label>
       <div class="spacer"></div>
-      <div class="legend">${TYPES.map((ty) => `<span><i style="--c:${typeColor(ty)}"></i>${typeShort(ty)}</span>`).join('')}<span><i class="hatch"></i>Pending</span>
+      <div class="legend"><span><i style="--c:var(--ok)"></i>Approved</span><span><i class="hatch" style="border-color:var(--warn);background:repeating-linear-gradient(45deg, var(--warn) 0 2px, transparent 2px 5px)"></i>Pending</span>
         ${month ? `<span class="heatkey">Fewer${[0, 14, 26, 40].map((h) => `<i style="background:color-mix(in srgb, var(--accent) ${h}%, var(--surface))"></i>`).join('')}More</span>${info('calMonth')}` : `<span><i style="--c:var(--faint);height:5px"></i>Half day</span>${info('calBars')}`}</div>
     </div>
     <div class="cal-layout ${month ? '' : 'solo'}">
@@ -1307,12 +1316,16 @@ function renderCalendar() {
   $('#calWe').onchange = (e) => { c.weekends = e.target.checked; save('calWeekends', c.weekends); renderCalendar(); };
 }
 
-/** Timeline bar labels: full text inside the bar if it fits, else beside it (right, then left), else the leave type inside, else none (the tooltip has it). */
+/** Timeline bar labels: full text inside the bar (after the photo) if it fits, else beside it (right, then left), else the leave type inside, else none (the tooltip has it). */
 function fitBarLabels(root) {
   for (const bar of root.querySelectorAll('.cal-row .bar')) {
-    const bl = bar.firstElementChild;
+    const bl = bar.querySelector('.bl'), av = bar.querySelector('.av');
+    // Short bars centre the photo without padding; only bars narrower than the photo drop it
+    if (bar.clientWidth < 22) bar.classList.add('noav');
+    else if (bar.clientWidth < 44) bar.classList.add('tight');
+    const room = () => bar.clientWidth - 19 - (bar.classList.contains('noav') ? 0 : av.offsetWidth + 6);
     const half = bar.classList.contains('half');
-    if (!half && bl.scrollWidth <= bar.clientWidth - 19) continue;
+    if (!half && bl.scrollWidth <= room()) continue;
     bar.classList.add('out');
     const r = bar.getBoundingClientRect(), w = bl.getBoundingClientRect().width + 14;
     const others = [...bar.parentElement.querySelectorAll('.bar')].filter((x) => x !== bar).map((x) => x.getBoundingClientRect());
@@ -1323,7 +1336,7 @@ function fitBarLabels(root) {
     if (r.left - w >= nameRight && !hits(r.left - w, r.left)) { bar.classList.add('out-l'); continue; }
     bar.classList.remove('out');
     bl.textContent = bar.dataset.short;
-    if (half || bl.scrollWidth > bar.clientWidth - 19) bar.classList.add('nolabel');
+    if (half || bl.scrollWidth > room()) bar.classList.add('nolabel');
   }
 }
 
