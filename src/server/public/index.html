@@ -84,6 +84,8 @@
   .wrap { margin: 0 auto; padding: 0 28px; }
   .num { font-variant-numeric: tabular-nums; }
   .muted { color: var(--muted); }
+  .hidden-note { margin-top: 6px; font-size: 12.5px; color: var(--warn); }
+  .linkbtn { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; }
   .faint { color: var(--faint); }
 
   /* ---------- Top bar ---------- */
@@ -94,7 +96,8 @@
     border-bottom: 1px solid var(--border);
   }
   .topbar .row1 { display: flex; align-items: center; gap: 18px; height: 60px; }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: -.015em; white-space: nowrap; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: -.015em; white-space: nowrap; color: inherit; text-decoration: none; }
+  .brand:hover { text-decoration: none; }
   .logo { width: 30px; height: 30px; border-radius: 8px; display: block; flex: none; }
   .tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
   .tabs::-webkit-scrollbar { display: none; }
@@ -575,11 +578,11 @@
 <header class="topbar">
   <div class="wrap">
     <div class="row1">
-      <div class="brand"><img class="logo" src="/apple-touch-icon.png?v=2" alt="">Leave Tracker</div>
+      <a class="brand" href="#calendar" title="Go to Calendar"><img class="logo" src="/apple-touch-icon.png?v=2" alt="">Leave Tracker</a>
       <nav class="tabs" id="tabs">
+        <button class="tab" data-tab="calendar">Calendar</button>
         <button class="tab" data-tab="overview">Overview</button>
         <button class="tab" data-tab="approvals">Approvals <span class="badge" id="b-approvals" hidden></span></button>
-        <button class="tab" data-tab="calendar">Calendar</button>
         <button class="tab" data-tab="requests">All requests</button>
         <button class="tab" data-tab="finance">Finance <span class="badge" id="b-finance" hidden></span></button>
         <button class="tab" data-tab="people">People</button>
@@ -638,7 +641,7 @@ const saved = (k, d) => { try { const v = store?.getItem('lt.' + k); return v ==
 const save = (k, v) => { try { store?.setItem('lt.' + k, JSON.stringify(v)); } catch {} };
 
 const state = {
-  tab: 'overview',
+  tab: 'calendar',
   // Department groups picked (empty = everyone), and Notion department names inside them (a group with none picked counts whole)
   depts: saved('depts', null) ?? (saved('dept', 'All') === 'All' ? [] : [saved('dept', 'All')]),
   subDepts: saved('subDepts', []),
@@ -1049,6 +1052,9 @@ function renderApprovals() {
   const all = scoped();
   const pendingAll = all.filter((l) => l.approval === 'Pending');
   const managers = [...new Set(pendingAll.map((l) => l.manager).filter(Boolean))].sort();
+  // Say what the department filter leaves out, so a missing manager isn't a mystery
+  const outside = state.leaves.filter((l) => l.approval === 'Pending' && !pendingAll.includes(l));
+  const outsideMgrs = [...new Set(outside.map((l) => l.manager).filter((m) => m && !managers.includes(m)))].sort();
   if (state.approvalsManager && !managers.includes(state.approvalsManager)) state.approvalsManager = '';
   const pending = pendingAll.filter((l) => !state.approvalsManager || l.manager === state.approvalsManager)
     .sort((a, b) => (a.start || '9').localeCompare(b.start || '9') || a.name.localeCompare(b.name));
@@ -1106,7 +1112,8 @@ function renderApprovals() {
   el.innerHTML = `
     <div class="toolbar">
       <div><h2 style="margin:0;font-size:18px;font-weight:600">Awaiting approval</h2>
-      <div class="muted" style="font-size:12.5px">Requests with no decision yet. Approve or reject in Notion; this page updates within a minute.</div></div>
+      <div class="muted" style="font-size:12.5px">Requests with no decision yet. Approve or reject in Notion; this page updates within a minute.</div>
+      ${outside.length ? `<div class="hidden-note">${plural(outside.length, 'more request')} hidden by the department filter (${esc(deptLabel() + (state.subDepts.length ? ': ' + state.subDepts.join(', ') : ''))})${outsideMgrs.length ? `, including managers ${esc(outsideMgrs.join(', '))}` : ''}. <button class="linkbtn" id="apShowAll">Show all departments</button></div>` : ''}</div>
       <div class="spacer"></div>
       ${info('apManager')}<select class="sel" id="apMgr"><option value="">All managers (${pendingAll.length})</option>${managers.map((m) => `<option ${m === state.approvalsManager ? 'selected' : ''} value="${esc(m)}">${esc(m)} (${pendingAll.filter((l) => l.manager === m).length})</option>`).join('')}</select>
     </div>
@@ -1116,6 +1123,8 @@ function renderApprovals() {
         ${ls.map((l) => card(l, c)).join('')}
       </div>`).join('') : '<div class="card"><div class="empty" style="padding:60px 0">✓ Nothing waiting for approval</div></div>'}`;
   $('#apMgr').onchange = (e) => { state.approvalsManager = e.target.value; save('approvalsManager', state.approvalsManager); renderApprovals(); };
+  const showAll = $('#apShowAll');
+  if (showAll) showAll.onclick = () => { state.depts = []; state.subDepts = []; save('depts', []); save('subDepts', []); renderAll(); };
 }
 
 // ---------------------------------------------------------------- calendar
@@ -1908,7 +1917,7 @@ let resizeT; addEventListener('resize', () => { clearTimeout(resizeT); resizeT =
 
 (async function boot() {
   const initial = location.hash.slice(1);
-  setTab($('#v-' + initial) ? initial : 'overview');
+  setTab($('#v-' + initial) ? initial : 'calendar');
   for (let i = 0; ; i++) {
     try { await load(); break; } catch (err) { $('#loading').textContent = err.message; await new Promise((r) => setTimeout(r, 3000)); }
   }
