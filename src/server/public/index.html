@@ -133,6 +133,11 @@
   .chip:hover { border-color: var(--border-strong); color: var(--text); }
   .chip.on { background: var(--text); border-color: var(--text); color: var(--surface); }
   .chip .n { opacity: .65; font-variant-numeric: tabular-nums; }
+  /* Sub-department chips: lighter, so the group choice stays the main one */
+  .filters.subrow { padding-top: 0; margin-top: -4px; }
+  .sub-sep { color: var(--faint); font-size: 16px; margin: 0 6px; }
+  .chip.sub { padding: 3px 10px; font-size: 12px; }
+  .chip.sub.on { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); color: var(--accent); }
 
   main.wrap { padding-top: 22px; padding-bottom: 64px; }
   .view { display: none; }
@@ -586,6 +591,7 @@
       </div>
     </div>
     <div class="filters" id="deptFilters"></div>
+    <div class="filters subrow" id="subFilters" hidden></div>
   </div>
 </header>
 
@@ -633,7 +639,9 @@ const save = (k, v) => { try { store?.setItem('lt.' + k, JSON.stringify(v)); } c
 
 const state = {
   tab: 'overview',
-  dept: saved('dept', 'All'),
+  // Department groups picked (empty = everyone), and Notion department names inside them (a group with none picked counts whole)
+  depts: saved('depts', null) ?? (saved('dept', 'All') === 'All' ? [] : [saved('dept', 'All')]),
+  subDepts: saved('subDepts', []),
   leaves: [],
   version: -1,
   fetchedAt: null,
@@ -728,7 +736,14 @@ function spread(l) {
 const daysOf = (l) => l.days ?? spread(l).length;
 function daysInRange(l, a, b) { return sum(spread(l).filter(([d]) => d >= a && d <= b), (x) => x[1]); }
 
-const scoped = () => (state.dept === 'All' ? state.leaves : state.leaves.filter((l) => l.deptGroup === state.dept));
+const subDeptOf = (l) => l.dept || 'No department';
+function scoped() {
+  if (!state.depts.length) return state.leaves;
+  // Groups where specific departments were picked are narrowed to those; the others count whole
+  const narrowed = new Set(state.leaves.filter((l) => state.subDepts.includes(subDeptOf(l))).map((l) => l.deptGroup));
+  return state.leaves.filter((l) => state.depts.includes(l.deptGroup) && (!narrowed.has(l.deptGroup) || state.subDepts.includes(subDeptOf(l))));
+}
+const deptLabel = () => state.depts.join(' + ');
 const approved = (list) => list.filter((l) => l.approval === 'Approved');
 
 // ---------------------------------------------------------------- tooltip
@@ -760,7 +775,8 @@ addEventListener('scroll', hideTip, { passive: true });
 
 // ---------------------------------------------------------------- glossary (text behind every ⓘ icon)
 const G = {
-  dept: `<p>Filters every tab to one department.</p><p>Notion has duplicate department names, so they're merged here:</p><p><b>Engineering</b>: Development, Lead Developer, Data, Architect, Engineering, Lead Engineering, After Shift Engineering, Workflow Automation, NetSuite<br><b>Quality Inspection</b>: QI and Quality Inspection<br><b>Account Managers</b>: Account Manager(s)<br><b>Design</b><br><b>Operations</b>: HR, Strategy, Management, Product, Customer Support, Executive Assistant, After Hours<br><b>Unassigned</b>: no department filled in</p>`,
+  dept: `<p>Filters every tab. Click several departments to see them together (for example Engineering and Quality Inspection); <b>All</b> clears the filter. Each department you pick can be narrowed further in the row below.</p><p>Notion has duplicate department names, so they're merged here:</p><p><b>Engineering</b>: Development, Lead Developer, Data, Architect, Engineering, Lead Engineering, After Shift Engineering, Workflow Automation, NetSuite<br><b>Quality Inspection</b>: QI and Quality Inspection<br><b>Account Managers</b>: Account Manager(s)<br><b>Design</b><br><b>Operations</b>: HR, Strategy, Management, Product, Customer Support, Executive Assistant, After Hours<br><b>Unassigned</b>: no department filled in</p>`,
+  subDept: `<p>Narrow each picked department to one or more of Notion's own <b>Dept</b> values. Click several to combine them; <b>All</b> shows that whole department again.</p><p>Applies to every tab and is remembered in this browser.</p>`,
   sync: `<p>Everything here is read from the <b>✈️ Leave Tracker</b> page in Notion. This app can't change anything: approve, reject and edit requests in Notion.</p><p>Changes in Notion show up here within about a minute. <b>Refresh</b> pulls them right away.</p><p>Only <b>current employees</b> are shown: anyone whose Employment Status in Team Members is Resigned or Fired is left out.</p>`,
 
   outToday: `<p>People whose <b>approved</b> leave covers today.</p><p>Requests still waiting for approval aren't counted. They're listed separately under "Not yet approved".</p>`,
@@ -835,12 +851,41 @@ function renderDeptFilters() {
   const t = today();
   for (const l of state.leaves) if (l.approval === 'Pending' || overlaps(l, addDays(t, -60), addDays(t, 365))) counts[l.deptGroup] = (counts[l.deptGroup] || 0) + 1;
   const present = DEPTS.filter((d) => state.leaves.some((l) => l.deptGroup === d));
+  state.depts = state.depts.filter((d) => present.includes(d));
   $('#deptFilters').innerHTML = `<span class="label">Department${info('dept')}</span>` +
-    ['All', ...present].map((d) => `<button class="chip ${state.dept === d ? 'on' : ''}" data-dept="${esc(d)}">${esc(d)}</button>`).join('');
+    `<button class="chip ${state.depts.length ? '' : 'on'}" data-dept="">All</button>` +
+    present.map((d) => `<button class="chip ${state.depts.includes(d) ? 'on' : ''}" data-dept="${esc(d)}" aria-pressed="${state.depts.includes(d)}">${state.depts.includes(d) ? '✓ ' : ''}${esc(d)}</button>`).join('');
+  // Under each picked group, Notion's own department names (Development, Data, Architect, …), busiest first; pick one or several
+  const rows = state.depts.map((g) => [g, [...state.leaves.filter((l) => l.deptGroup === g).reduce((m, l) => m.set(subDeptOf(l), (m.get(subDeptOf(l)) || 0) + 1), new Map())]
+    .sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0])).map(([n]) => n)]).filter(([, subs]) => subs.length > 1);
+  const allSubs = rows.flatMap(([, subs]) => subs);
+  state.subDepts = state.subDepts.filter((d) => allSubs.includes(d));
+  $('#subFilters').hidden = !rows.length;
+  $('#subFilters').innerHTML = rows.map(([g, subs], i) => {
+    const none = !subs.some((d) => state.subDepts.includes(d));
+    return `${i ? '<span class="sub-sep" aria-hidden="true">·</span>' : ''}<span class="label">${esc(g)}${i ? '' : info('subDept')}</span>` +
+      `<button class="chip sub ${none ? 'on' : ''}" data-suball="${esc(g)}">All</button>` +
+      subs.map((d) => `<button class="chip sub ${state.subDepts.includes(d) ? 'on' : ''}" data-sub="${esc(d)}">${esc(d)}</button>`).join('');
+  }).join('');
 }
 $('#deptFilters').addEventListener('click', (e) => {
   const b = e.target.closest('[data-dept]'); if (!b) return;
-  state.dept = b.dataset.dept; save('dept', state.dept); renderAll();
+  const d = b.dataset.dept;
+  // Several groups can be picked together; All clears them
+  state.depts = !d ? [] : state.depts.includes(d) ? state.depts.filter((x) => x !== d) : [...state.depts, d];
+  save('depts', state.depts); renderAll();
+});
+$('#subFilters').addEventListener('click', (e) => {
+  const all = e.target.closest('[data-suball]');
+  if (all) {
+    const g = all.dataset.suball;
+    state.subDepts = state.subDepts.filter((d) => !state.leaves.some((l) => l.deptGroup === g && subDeptOf(l) === d));
+  } else {
+    const s = e.target.closest('[data-sub]'); if (!s) return;
+    const d = s.dataset.sub;
+    state.subDepts = state.subDepts.includes(d) ? state.subDepts.filter((x) => x !== d) : [...state.subDepts, d];
+  }
+  save('subDepts', state.subDepts); renderAll();
 });
 
 function setTab(tab) {
@@ -1197,7 +1242,7 @@ function renderCalendar() {
         const tot = round1(sum(p.leaves.filter((l) => l.approval === 'Approved'), (l) => daysInRange(l, a, b)));
         return `<div class="cal-row"><div class="who" data-person="${esc(p.key)}">${avatar(p.sample, 'sm')}<div class="pmain"><div class="pname">${esc(p.sample.name)}</div><div class="pmeta">${esc(p.sample.dept || p.sample.deptGroup)}</div></div>${tot ? `<span class="tot" title="Approved days in view">${fmtNum(tot)}d</span>` : ''}</div>${cells()}${bars(p)}</div>`;
       }).join('')).join('')
-      : `<div class="empty" style="padding:50px 0">No leave in this period${state.dept !== 'All' ? ' for ' + esc(state.dept) : ''}</div>`}
+      : `<div class="empty" style="padding:50px 0">No leave in this period${state.depts.length ? ' for ' + esc(deptLabel()) : ''}</div>`}
     </div></div>`;
   };
 
