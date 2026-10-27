@@ -18,6 +18,7 @@ const DEPT_GROUP_BY_LABEL: Record<string, DeptGroup> = {
   data: 'Engineering',
   'workflow automation': 'Engineering',
   netsuite: 'Engineering',
+  'after hours': 'Engineering',
   qi: 'Quality Inspection',
   'quality inspection': 'Quality Inspection',
   'account managers': 'Account Managers',

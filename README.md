@@ -28,7 +28,7 @@ Set `BASIC_AUTH_USER` / `BASIC_AUTH_PASS` before putting it anywhere other than 
 
 ## Tabs
 
-The **Department** chips at the top filter every tab (remembered per browser). Notion's duplicate departments are merged: Engineering = Development, Lead Developer, Data, Architect, Engineering, Lead Engineering, After Shift Engineering, Workflow Automation, NetSuite (the same set as Notion's "Dev Dept View"); Quality Inspection = QI + Quality Inspection; Account Managers = Account Manager(s); Design; Operations = everything else (HR, Strategy, Management, Product, After Hours, …).
+The **Department** chips at the top filter every tab (remembered per browser). Notion's duplicate departments are merged: Engineering = Development, Lead Developer, Data, Architect, Engineering, Lead Engineering, After Shift Engineering, After Hours, Workflow Automation, NetSuite (Notion's "Dev Dept View" set, plus After Hours and NetSuite); Quality Inspection = QI + Quality Inspection; Account Managers = Account Manager(s); Design; Operations = everything else (HR, Strategy, Management, Product, …).
 
 | Tab | Replaces in Notion | What it shows |
 |---|---|---|
